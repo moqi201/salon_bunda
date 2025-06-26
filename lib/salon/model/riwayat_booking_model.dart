@@ -1,47 +1,40 @@
+// lib/salon/model/riwayat_booking_model.dart
 import 'dart:convert';
 
-import 'package:salon_bunda/salon/model/service_model.dart'; // Import the Service model
+import 'package:salon_bunda/salon/model/base_response.dart';
+import 'package:salon_bunda/salon/model/service_model.dart'; // Import Service model
 
-RiwayatBooking riwayatBookingFromJson(String str) =>
-    RiwayatBooking.fromJson(json.decode(str));
+// Fungsi helper untuk mem-parsing BaseResponse<List<Datum>> dari JSON string
+BaseResponse<List<Datum>> riwayatBookingResponseFromJson(
+  String str,
+) => BaseResponse.fromJson(
+  json.decode(str) as Map<String, dynamic>,
+  // Fungsi untuk mengubah 'data' (yang merupakan List<dynamic>) menjadi List<Datum>
+  (json) => List<Datum>.from(
+    (json as List<dynamic>).map(
+      (x) => Datum.fromJson(x as Map<String, dynamic>),
+    ),
+  ),
+);
 
-String riwayatBookingToJson(RiwayatBooking data) => json.encode(data.toJson());
-
-class RiwayatBooking {
-  String? message;
-  List<Datum>? data;
-
-  RiwayatBooking({this.message, this.data});
-
-  factory RiwayatBooking.fromJson(Map<String, dynamic> json) => RiwayatBooking(
-    message: json["message"] as String?, // Added explicit cast for safety
-    data:
-        json["data"] == null
-            ? []
-            : List<Datum>.from(
-              (json["data"] as List<dynamic>).map(
-                (x) => Datum.fromJson(x as Map<String, dynamic>),
-              ),
-            ),
-  );
-
-  Map<String, dynamic> toJson() => {
-    "message": message,
-    "data":
-        data == null ? [] : List<dynamic>.from(data!.map((x) => x.toJson())),
-  };
-}
+// Fungsi helper untuk mengkonversi objek BaseResponse<List<Datum>> ke JSON string
+String riwayatBookingResponseToJson(BaseResponse<List<Datum>> data) =>
+    json.encode(
+      data.toJson(
+        // Fungsi untuk mengubah List<Datum> menjadi List<Map<String, dynamic>>
+        (dataList) => dataList?.map((x) => x.toJson()).toList() ?? [],
+      ),
+    );
 
 class Datum {
-  int? id;
-  int? userId; // Diubah menjadi int?
-  int? serviceId; // Diubah menjadi int?
-  DateTime? bookingTime;
-  String? status;
-  String? employeeName;
-  DateTime? createdAt;
-  DateTime? updatedAt;
-  Service? service; // Pastikan ini mengacu pada model Service yang diperbarui
+  final int? id;
+  final int? userId;
+  final int? serviceId;
+  final DateTime? bookingTime;
+  final String? status;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final Service? service; // Objek Service yang bersarang
 
   Datum({
     this.id,
@@ -49,7 +42,6 @@ class Datum {
     this.serviceId,
     this.bookingTime,
     this.status,
-    this.employeeName,
     this.createdAt,
     this.updatedAt,
     this.service,
@@ -57,17 +49,14 @@ class Datum {
 
   factory Datum.fromJson(Map<String, dynamic> json) => Datum(
     id: json["id"] as int?,
-    // MEMBETULKAN: Menggunakan int.tryParse karena user_id bisa berupa string atau int dari API
     userId:
         json["user_id"] != null
             ? int.tryParse(json["user_id"].toString())
             : null,
-    // MEMBETULKAN: Menggunakan int.tryParse karena service_id bisa berupa string atau int dari API
     serviceId:
         json["service_id"] != null
             ? int.tryParse(json["service_id"].toString())
             : null,
-    // MEMBETULKAN: Mengatasi format booking_time dengan mengganti spasi menjadi 'T'
     bookingTime:
         json["booking_time"] != null
             ? DateTime.tryParse(
@@ -75,7 +64,6 @@ class Datum {
             )
             : null,
     status: json["status"] as String?,
-    employeeName: json["employee_name"] as String?,
     createdAt:
         json["created_at"] != null
             ? DateTime.parse(json["created_at"] as String)
@@ -87,7 +75,7 @@ class Datum {
     service:
         json["service"] != null
             ? Service.fromJson(json["service"] as Map<String, dynamic>)
-            : null, // Parse nested Service
+            : null, // Parsing objek Service di sini
   );
 
   Map<String, dynamic> toJson() => {
@@ -96,9 +84,21 @@ class Datum {
     "service_id": serviceId,
     "booking_time": bookingTime?.toIso8601String(),
     "status": status,
-    "employee_name": employeeName,
     "created_at": createdAt?.toIso8601String(),
     "updated_at": updatedAt?.toIso8601String(),
-    "service": service?.toJson(),
+    "service": service?.toJson(), // Serialisasi objek Service di sini
   };
+
+  // --- GETTER UNTUK KEMUDAHAN AKSES FOTO ---
+  // Getter ini akan mencari servicePhotoUrl terlebih dahulu,
+  // jika null atau kosong, baru mencari employeePhotoUrl.
+  String? get photoUrl {
+    if (service?.servicePhotoUrl != null &&
+        service!.servicePhotoUrl!.isNotEmpty) {
+      return service!.servicePhotoUrl;
+    }
+    return null;
+  }
+
+  // --- AKHIR GETTER ---
 }

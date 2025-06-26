@@ -1,19 +1,17 @@
-// lib/salon/screen/booking_detail_edit_dialog.dart (File Baru)
+// lib/salon/widget/booking_dialog.dart
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:salon_bunda/salon/model/base_response.dart';
-import 'package:salon_bunda/salon/model/booking_model.dart';
 import 'package:salon_bunda/salon/model/riwayat_booking_model.dart'
     as riwayat_alias;
 import 'package:salon_bunda/salon/service/api_service.dart';
+import 'package:salon_bunda/salon/model/base_response.dart';
+import 'package:flutter/foundation.dart'; // Import ini untuk debugPrint
 
-// Ini adalah dialog untuk mengelola detail satu booking (mengambil alih logika dari BookingManagementScreen sebelumnya)
 class BookingDetailEditDialog extends StatefulWidget {
-  final riwayat_alias.Datum
-  bookingDatum; // Menerima Datum dari riwayat_booking_model
-  final Function()
-  onBookingUpdated; // Callback untuk memberitahu jika booking diupdate/hapus
+  final riwayat_alias.Datum bookingDatum;
+  final VoidCallback
+  onBookingUpdated; // Callback untuk memberitahu parent sudah diupdate
 
   const BookingDetailEditDialog({
     super.key,
@@ -27,306 +25,204 @@ class BookingDetailEditDialog extends StatefulWidget {
 }
 
 class _BookingDetailEditDialogState extends State<BookingDetailEditDialog> {
-  DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
-  String?
-  _selectedStatus; // Untuk status booking (pending, confirmed, cancelled)
   final ApiService _apiService = ApiService();
   bool _isLoading = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // Inisialisasi dengan data booking yang ada
-    _selectedDate = widget.bookingDatum.bookingTime?.toLocal();
-    _selectedTime =
-        widget.bookingDatum.bookingTime != null
-            ? TimeOfDay.fromDateTime(widget.bookingDatum.bookingTime!.toLocal())
-            : null;
-    _selectedStatus = widget.bookingDatum.status;
-  }
-
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime(2026),
-    );
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
+  // Helper untuk menampilkan SnackBar
+  void _showSnackBar(String message, {Color? backgroundColor}) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: backgroundColor),
+      );
     }
   }
 
-  Future<void> _selectTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime ?? TimeOfDay.now(),
-    );
-    if (picked != null && picked != _selectedTime) {
-      setState(() {
-        _selectedTime = picked;
-      });
-    }
-  }
-
-  Future<void> _updateBooking() async {
-    if (widget.bookingDatum.id == null) {
-      _showSnackBar('ID Booking tidak tersedia.');
-      return;
-    }
-
+  // Metode untuk memperbarui status booking (Konfirmasi/Batalkan)
+  Future<void> _updateBookingStatus(String newStatus) async {
     setState(() {
       _isLoading = true;
     });
-
-    DateTime? updatedDateTime;
-    if (_selectedDate != null && _selectedTime != null) {
-      updatedDateTime = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-        _selectedTime!.hour,
-        _selectedTime!.minute,
+    try {
+      final response = await _apiService.updateBooking(
+        widget.bookingDatum.id!,
+        status: newStatus,
       );
-    }
 
-    BaseResponse<Booking>? result = await _apiService.updateBooking(
-      widget.bookingDatum.id!,
-      status: _selectedStatus,
-      bookingTime: updatedDateTime,
-    );
+      // Pastikan widget masih mounted sebelum menggunakan context
+      if (!mounted) return;
 
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (result != null && result.data != null) {
-      _showSnackBar(result.message ?? 'Booking berhasil diperbarui.');
-      widget
-          .onBookingUpdated(); // Panggil callback untuk refresh di halaman sebelumnya
-      Navigator.of(context).pop(); // Tutup dialog
-    } else {
-      _showSnackBar(
-        result?.message ?? 'Gagal memperbarui booking. Silakan coba lagi.',
-      );
-    }
-  }
-
-  Future<void> _deleteBooking() async {
-    if (widget.bookingDatum.id == null) {
-      _showSnackBar('ID Booking tidak tersedia.');
-      return;
-    }
-
-    // Konfirmasi penghapusan
-    bool? confirmDelete = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Konfirmasi Hapus'),
-          content: const Text('Apakah Anda yakin ingin menghapus booking ini?'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Batal'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop(false);
-              },
-            ),
-            TextButton(
-              child: const Text('Hapus', style: TextStyle(color: Colors.red)),
-              onPressed: () {
-                Navigator.of(dialogContext).pop(true);
-              },
-            ),
-          ],
+      if (response != null) {
+        // PERBAIKAN: Cek `response.success` secara eksplisit
+        if (response.success == true) {
+          // <--- PERBAIKAN DI SINI
+          _showSnackBar(
+            'Booking berhasil di${newStatus.toLowerCase()}!',
+            backgroundColor: Colors.green,
+          );
+          // Panggil callback sebelum menutup dialog agar halaman parent punya waktu untuk refresh
+          widget.onBookingUpdated();
+          Navigator.of(context).pop(); // Tutup dialog
+        } else {
+          // API merespons tapi 'success' adalah false
+          final String errorMessage =
+              response.message ?? 'Terjadi kesalahan saat memperbarui.';
+          _showSnackBar(
+            'Gagal memperbarui booking: $errorMessage',
+            backgroundColor: Colors.red,
+          );
+        }
+      } else {
+        // Response dari ApiService adalah null (biasanya masalah koneksi/parsing fatal di ApiService)
+        _showSnackBar(
+          'Terjadi kesalahan koneksi atau server tidak merespons.',
+          backgroundColor: Colors.red,
         );
-      },
-    );
-
-    if (confirmDelete != true) {
-      return; // Batal menghapus
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    BaseResponse<dynamic>? result = await _apiService.deleteBooking(
-      widget.bookingDatum.id!,
-    );
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (result != null &&
-        (result.message != null && result.message!.isNotEmpty)) {
-      _showSnackBar(result.message!);
-      widget
-          .onBookingUpdated(); // Panggil callback untuk refresh di halaman sebelumnya
-      Navigator.of(context).pop(); // Tutup dialog
-    } else {
-      _showSnackBar('Gagal menghapus booking. Silakan coba lagi.');
+      }
+    } catch (e) {
+      // Menggunakan debugPrint untuk debugging yang lebih baik di Flutter
+      debugPrint('Error updating booking: $e');
+      _showSnackBar(
+        'Terjadi kesalahan tak terduga: $e',
+        backgroundColor: Colors.red,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+  // Metode untuk menghapus booking
+  Future<void> _deleteBooking() async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      final response = await _apiService.deleteBooking(widget.bookingDatum.id!);
+
+      // Pastikan widget masih mounted sebelum menggunakan context
+      if (!mounted) return;
+
+      if (response != null) {
+        // PERBAIKAN: Cek `response.success` secara eksplisit
+        if (response.success == true) {
+          // <--- PERBAIKAN DI SINI
+          _showSnackBar(
+            'Booking berhasil dihapus!',
+            backgroundColor: Colors.green,
+          );
+          widget.onBookingUpdated(); // Panggil callback sukses
+          Navigator.of(context).pop(); // Tutup dialog
+        } else {
+          // API merespons tapi 'success' adalah false
+          final String errorMessage =
+              response.message ?? 'Terjadi kesalahan saat menghapus.';
+          _showSnackBar(
+            'Gagal menghapus booking: $errorMessage',
+            backgroundColor: Colors.red,
+          );
+        }
+      } else {
+        // Response dari ApiService adalah null
+        _showSnackBar(
+          'Terjadi kesalahan koneksi atau server tidak merespons.',
+          backgroundColor: Colors.red,
+        );
+      }
+    } catch (e) {
+      // Menggunakan debugPrint untuk debugging yang lebih baik di Flutter
+      debugPrint('Error deleting booking: $e');
+      _showSnackBar(
+        'Terjadi kesalahan tak terduga: $e',
+        backgroundColor: Colors.red,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-      elevation: 0.0,
-      backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(24.0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16.0),
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Manajemen Booking',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                ],
+    return AlertDialog(
+      title: const Text('Kelola Booking'),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Layanan: ${widget.bookingDatum.service?.name ?? 'N/A'}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Waktu: ${widget.bookingDatum.bookingTime != null ? DateFormat('dd MMM, HH:mm').format(widget.bookingDatum.bookingTime!.toLocal()) : 'N/A'}',
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Status Saat Ini: ${widget.bookingDatum.status ?? 'N/A'}',
+              style: TextStyle(
+                color:
+                    widget.bookingDatum.status == 'confirmed'
+                        ? Colors.green.shade700
+                        : widget.bookingDatum.status == 'pending'
+                        ? const Color.fromARGB(255, 245, 0, 0)
+                        : widget.bookingDatum.status ==
+                            'cancelled' // Menambahkan warna untuk status 'cancelled'
+                        ? Colors
+                            .red
+                            .shade700 // Warna merah untuk cancelled
+                        : Colors
+                            .grey
+                            .shade700, // Warna default jika status tidak dikenal
+                fontWeight: FontWeight.bold,
               ),
-              const Divider(height: 30),
-              Text(
-                'Layanan: ${widget.bookingDatum.service?.name ?? 'N/A'}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Harga: Rp ${widget.bookingDatum.service?.price?.toStringAsFixed(2) ?? 'N/A'}', // Menggunakan toStringAsFixed
-                style: const TextStyle(fontSize: 16, color: Colors.green),
-              ),
-              const Divider(height: 30),
-              const Text(
-                'Ubah Detail Booking',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 15),
-
-              ListTile(
-                title: Text(
-                  _selectedDate == null
-                      ? 'Pilih Tanggal'
-                      : 'Tanggal: ${DateFormat('dd-MM-yyyy').format(_selectedDate!)}',
-                ),
-                trailing: const Icon(Icons.calendar_today),
-                onTap: () => _selectDate(context),
-              ),
-              ListTile(
-                title: Text(
-                  _selectedTime == null
-                      ? 'Pilih Waktu'
-                      : 'Waktu: ${_selectedTime!.format(context)}',
-                ),
-                trailing: const Icon(Icons.access_time),
-                onTap: () => _selectTime(context),
-              ),
-              const SizedBox(height: 20),
-
-              DropdownButtonFormField<String>(
-                value: _selectedStatus,
-                decoration: const InputDecoration(
-                  labelText: 'Status Booking',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                ),
-                items:
-                    <String>[
-                      'pending',
-                      'confirmed',
-                      'cancelled',
-                    ].map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value.toUpperCase()),
-                      );
-                    }).toList(),
-                onChanged: (String? newValue) {
-                  setState(() {
-                    _selectedStatus = newValue;
-                  });
-                },
-              ),
-              const SizedBox(height: 30),
-
-              _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : Column(
-                    children: [
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton.icon(
-                          onPressed: _updateBooking,
-                          icon: const Icon(Icons.edit, color: Colors.white),
-                          label: const Text(
-                            'Perbarui Booking',
-                            style: TextStyle(fontSize: 18, color: Colors.white),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepOrange,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton.icon(
-                          onPressed: _deleteBooking,
-                          icon: const Icon(Icons.delete, color: Colors.white),
-                          label: const Text(
-                            'Hapus Booking',
-                            style: TextStyle(fontSize: 18, color: Colors.white),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red.shade700,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 16),
+            _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : const SizedBox.shrink(),
+          ],
         ),
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Tutup'),
+        ),
+        // Hanya tampilkan tombol Konfirmasi jika statusnya 'pending'
+        if (widget.bookingDatum.status == 'pending')
+          TextButton(
+            onPressed:
+                _isLoading ? null : () => _updateBookingStatus('confirmed'),
+            child: const Text(
+              'Konfirmasi',
+              style: TextStyle(color: Colors.green),
+            ),
+          ),
+        // Tampilkan tombol Batalkan hanya jika status bukan 'cancelled' atau 'completed'
+        if (widget.bookingDatum.status != 'cancelled' &&
+            widget.bookingDatum.status != 'completed')
+          TextButton(
+            onPressed:
+                _isLoading ? null : () => _updateBookingStatus('cancelled'),
+            child: const Text(
+              'Batalkan',
+              style: TextStyle(color: Colors.orange),
+            ),
+          ),
+        // Tombol hapus selalu ada
+        TextButton(
+          onPressed: _isLoading ? null : _deleteBooking,
+          child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+        ),
+      ],
     );
   }
 }

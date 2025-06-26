@@ -1,11 +1,13 @@
-import 'dart:convert';
-import 'dart:typed_data'; // Untuk Uint8List
+// lib/salon/service/api_service.dart
 
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart'; // Import XFile
 // Import model-model terbaru
 import 'package:salon_bunda/salon/model/auth_response.dart';
-import 'package:salon_bunda/salon/model/base_response.dart';
+import 'package:salon_bunda/salon/model/base_response.dart'; // Pastikan ini adalah BaseResponse yang sudah disesuaikan (success: bool?)
 import 'package:salon_bunda/salon/model/booking_model.dart';
 import 'package:salon_bunda/salon/model/riwayat_booking_model.dart'
     as riwayat_alias;
@@ -18,6 +20,8 @@ class ApiService {
   static String? _token;
   static User? _currentUser;
 
+  // Static methods (getToken, saveToken, saveCurrentUser, getCurrentUser, deleteToken)
+  // Tidak ada perubahan di sini, mereka sudah cukup baik.
   static Future<String?> getToken() async {
     if (_token != null) return _token;
     final prefs = await SharedPreferences.getInstance();
@@ -56,6 +60,71 @@ class ApiService {
     _currentUser = null;
   }
 
+  // Helper untuk parsing respons dan menambahkan logika 'success'
+  // Ini adalah bagian kunci yang disesuaikan untuk BaseResponse Anda.
+  BaseResponse<T> _parseAndCreateBaseResponse<T>(
+    http.Response response,
+    T Function(Object? json) fromJsonT, {
+    bool defaultSuccessOn2xx =
+        true, // Default: Anggap sukses jika status 200-299
+  }) {
+    try {
+      final jsonResponse = jsonDecode(response.body);
+
+      // Tentukan status sukses secara eksplisit
+      // Gunakan field 'success' dari JSON jika ada dan boolean.
+      // Jika tidak ada, gunakan status HTTP code.
+      // Perbaikan di sini: Menangani nullable bool dari jsonResponse['success']
+      final bool isSuccessDetermined;
+      if (jsonResponse['success'] is bool) {
+        isSuccessDetermined = jsonResponse['success'] as bool;
+      } else {
+        isSuccessDetermined =
+            (defaultSuccessOn2xx &&
+                (response.statusCode >= 200 && response.statusCode < 300));
+      }
+
+      T? data;
+      // Hanya coba parse 'data' jika dianggap sukses dan 'data' ada
+      if (isSuccessDetermined && jsonResponse['data'] != null) {
+        try {
+          data = fromJsonT(jsonResponse['data']);
+        } catch (e) {
+          print('[ApiService] Warning: Failed to parse data on success: $e');
+          // Jika gagal parse data, biarkan data null, tapi tetap tandai sebagai sukses
+          data = null;
+        }
+      }
+
+      // Karena BaseResponse.message bisa nullable sekarang, kita harus memastikan ada string.
+      // Jika API tidak mengirim 'message', berikan default.
+      final String message =
+          (jsonResponse['message'] as String?) ?? // Langsung casting ke String?
+          (isSuccessDetermined ? 'Operasi berhasil.' : 'Operasi gagal.');
+
+      return BaseResponse<T>(
+        message: message,
+        data: data,
+        errors:
+            (jsonResponse['errors'] is Map)
+                ? Map<String, dynamic>.from(jsonResponse['errors'] as Map)
+                : null,
+        success:
+            isSuccessDetermined, // <<< Ini yang akan mengesampingkan default di BaseResponse
+      );
+    } catch (e) {
+      print(
+        '[ApiService] Error parsing API response: $e. Response body: ${response.body}',
+      );
+      // Jika ada error decoding JSON atau error lain, anggap gagal
+      return BaseResponse<T>(
+        message: 'Gagal memproses respons server: $e',
+        success: false, // Pastikan ini false jika ada error parsing
+      );
+    }
+  }
+
+  // --- Metode Login ---
   Future<BaseResponse<AuthData>?> login(String email, String password) async {
     final url = Uri.parse('$baseUrl/login');
     try {
@@ -65,44 +134,44 @@ class ApiService {
         body: jsonEncode({'email': email, 'password': password}),
       );
 
-      // ignore: avoid_print
       print('[ApiService] Login URL: $url');
-      // ignore: avoid_print
       print('[ApiService] Login Status Code: ${response.statusCode}');
-      // ignore: avoid_print
       print('[ApiService] Login Response Body: ${response.body}');
 
-      if (response.statusCode == 200) {
-        final jsonResponse = jsonDecode(response.body);
-        final BaseResponse<AuthData> authBaseResponse = BaseResponse.fromJson(
-          jsonResponse,
-          (json) => AuthData.fromJson(json as Map<String, dynamic>),
-        );
+      final BaseResponse<AuthData> authBaseResponse =
+          _parseAndCreateBaseResponse(
+            response,
+            (json) => AuthData.fromJson(json as Map<String, dynamic>),
+          );
+
+      // Logika token dan user disimpan jika login sukses
+      // PERBAIKAN BARIS 144: Cek `authBaseResponse.success` secara eksplisit
+      if (authBaseResponse.success == true) {
+        // <--- PERBAIKAN DI SINI
         if (authBaseResponse.data?.token != null &&
             authBaseResponse.data?.user != null) {
           await saveToken(authBaseResponse.data!.token!);
           await saveCurrentUser(authBaseResponse.data!.user!);
+        } else {
+          // Jika success true tapi data token/user null, mungkin ada masalah di API
+          print('[ApiService] Login success but token/user data missing.');
         }
-        return authBaseResponse;
       } else {
-        final jsonResponse = jsonDecode(response.body);
-        final BaseResponse<AuthData> errorResponse = BaseResponse.fromJson(
-          jsonResponse,
-          (json) => AuthData.fromJson(json as Map<String, dynamic>),
-        );
-        // ignore: avoid_print
         print(
           '[ApiService] Login failed: ${response.statusCode} - ${response.body}',
         );
-        return errorResponse;
       }
+      return authBaseResponse;
     } catch (e) {
-      // ignore: avoid_print
       print('[ApiService] Error during login: $e');
-      return null;
+      return BaseResponse<AuthData>(
+        message: 'Terjadi kesalahan jaringan: $e',
+        success: false,
+      );
     }
   }
 
+  // --- Metode Register ---
   Future<BaseResponse<AuthData>?> register(
     String name,
     String email,
@@ -116,53 +185,153 @@ class ApiService {
         body: jsonEncode({'name': name, 'email': email, 'password': password}),
       );
 
-      // ignore: avoid_print
-      print('[ApiService] Register URL: $url');
-      // ignore: avoid_print
-      print('[ApiService] Register Status Code: ${response.statusCode}');
-      // ignore: avoid_print
-      print('[ApiService] Register Response Body: ${response.body}');
+      // Gunakan debugPrint untuk logging dalam mode debug
+      if (kDebugMode) {
+        debugPrint('[ApiService] Register URL: $url');
+        debugPrint('[ApiService] Register Status Code: ${response.statusCode}');
+        debugPrint('[ApiService] Register Response Body: ${response.body}');
+        debugPrint(
+          '[ApiService] Register Response Headers: ${response.headers}',
+        );
+      }
 
+      // --- PENANGANAN STATUS CODE 302 (REDIRECT) ---
+      if (response.statusCode == 302) {
+        final redirectLocation = response.headers['location'];
+        debugPrint('[ApiService] !!! REDIRECT DETECTED (Status 302) !!!');
+        debugPrint('Redirecting to: $redirectLocation');
+        return BaseResponse<AuthData>(
+          success: false,
+          message:
+              'Gagal mendaftar: Server melakukan pengalihan (redirect). '
+              'Kemungkinan URL API salah atau konfigurasi server tidak tepat. '
+              'Redirect ke: ${redirectLocation ?? 'URL tidak diketahui'}',
+          errors: {
+            'redirect_error': [
+              'Server sent a 302 redirect. Expected JSON response.',
+            ],
+          },
+        );
+      }
+
+      // --- PENANGANAN STATUS CODE SUKSES (200, 201) ---
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final jsonResponse = jsonDecode(response.body);
-        final BaseResponse<AuthData> authBaseResponse = BaseResponse.fromJson(
-          jsonResponse,
-          (json) => AuthData.fromJson(json as Map<String, dynamic>),
-        );
-        if (authBaseResponse.data?.token != null &&
-            authBaseResponse.data?.user != null) {
-          await saveToken(authBaseResponse.data!.token!);
-          await saveCurrentUser(authBaseResponse.data!.user!);
+        try {
+          final jsonResponse = jsonDecode(response.body);
+          final BaseResponse<AuthData> authBaseResponse = BaseResponse.fromJson(
+            jsonResponse,
+            (json) => AuthData.fromJson(json as Map<String, dynamic>),
+          );
+
+          if (authBaseResponse.success == true) {
+            if (authBaseResponse.data?.token != null &&
+                authBaseResponse.data?.user != null) {
+              await saveToken(authBaseResponse.data!.token!);
+              await saveCurrentUser(authBaseResponse.data!.user!);
+              debugPrint(
+                '[ApiService] Register successful. Token and user data saved.',
+              );
+            } else {
+              debugPrint(
+                '[ApiService] Register success, but token or user data is missing in response.',
+              );
+            }
+          } else {
+            // Ini menangani kasus API mengembalikan success: false tetapi status 200/201
+            debugPrint(
+              '[ApiService] Register failed according to API response (success: false). Message: ${authBaseResponse.message}',
+            );
+          }
+          return authBaseResponse;
+        } on FormatException catch (e) {
+          // Menangkap error parsing JSON jika body tidak valid JSON meskipun status 200/201
+          debugPrint(
+            '[ApiService] FormatException during JSON decode (Status ${response.statusCode}): $e',
+          );
+          debugPrint('Invalid JSON Body: ${response.body}');
+          return BaseResponse<AuthData>(
+            success: false,
+            message:
+                'Gagal memproses data pendaftaran dari server. Respons tidak valid.',
+            errors: {
+              'json_parse_error': [e.toString(), 'Raw body: ${response.body}'],
+            },
+          );
+        } catch (e) {
+          debugPrint(
+            '[ApiService] Unexpected error after successful status code: $e',
+          );
+          return BaseResponse<AuthData>(
+            success: false,
+            message:
+                'Terjadi kesalahan tak terduga setelah pendaftaran berhasil: $e',
+          );
         }
-        return authBaseResponse;
       } else {
-        final jsonResponse = jsonDecode(response.body);
-        final BaseResponse<AuthData> errorResponse = BaseResponse.fromJson(
-          jsonResponse,
-          (json) => AuthData.fromJson(json as Map<String, dynamic>),
-        );
-        // ignore: avoid_print
-        print(
-          '[ApiService] Register failed: ${response.statusCode} - ${response.body}',
-        );
-        return errorResponse;
+        // --- PENANGANAN STATUS CODE ERROR (4xx, 5xx) ---
+        // Mencoba mengurai body sebagai JSON karena banyak API mengirim detail error dalam JSON
+        try {
+          final jsonResponse = jsonDecode(response.body);
+          final BaseResponse<AuthData> errorResponse = BaseResponse.fromJson(
+            jsonResponse,
+            (json) => AuthData.fromJson(
+              json as Map<String, dynamic>,
+            ), // Mungkin AuthData ini tidak relevan untuk error, tapi kita pakai BaseResponsenya
+          );
+          debugPrint(
+            '[ApiService] Register failed with status ${response.statusCode}. API message: ${errorResponse.message}',
+          );
+          return errorResponse; // Mengembalikan BaseResponse dengan pesan error dari API
+        } on FormatException catch (e) {
+          // Jika body respons error BUKAN JSON (misal HTML error page dari server)
+          debugPrint(
+            '[ApiService] FormatException during JSON decode for error status (Status ${response.statusCode}): $e',
+          );
+          debugPrint('Non-JSON Error Body: ${response.body}');
+          return BaseResponse<AuthData>(
+            success: false,
+            message:
+                'Gagal mendaftar: Kesalahan server (${response.statusCode}). Respons tidak valid atau bukan JSON. ${response.body.length > 200 ? '${response.body.substring(0, 200)}...' : response.body}',
+            errors: {
+              'http_error': [
+                'Status: ${response.statusCode}',
+                'Body: ${response.body}',
+              ],
+            },
+          );
+        } catch (e) {
+          // Menangkap error lain saat memproses respons error
+          debugPrint(
+            '[ApiService] Unexpected error handling non-200 status: $e',
+          );
+          return BaseResponse<AuthData>(
+            success: false,
+            message:
+                'Gagal mendaftar: Terjadi kesalahan tak terduga saat memproses respons error.',
+          );
+        }
       }
     } catch (e) {
-      // ignore: avoid_print
-      print('[ApiService] Error during registration: $e');
-      return null;
+      // --- PENANGANAN ERROR JARINGAN ATAU EXCEPTION LAINNYA ---
+      debugPrint('[ApiService] Error during registration: $e');
+      return BaseResponse<AuthData>(
+        message:
+            'Gagal terhubung ke server atau terjadi kesalahan jaringan: $e',
+        success: false,
+      );
     }
   }
 
+  // --- Metode getServices ---
   Future<BaseResponse<List<Service>>?> getServices() async {
     final url = Uri.parse('$baseUrl/services');
     final token = await getToken();
     if (token == null) {
-      // ignore: avoid_print
       print(
         '[ApiService] No token available for getServices. User not logged in.',
       );
-      return null;
+      // Mengembalikan BaseResponse yang valid dengan status gagal
+      return BaseResponse(message: 'Autentikasi diperlukan.', success: false);
     }
 
     try {
@@ -174,60 +343,38 @@ class ApiService {
         },
       );
 
-      // ignore: avoid_print
       print('[ApiService] URL for getServices: $url');
-      // ignore: avoid_print
       print(
         '[ApiService] Request Headers for getServices: ${response.request?.headers}',
       );
-      // ignore: avoid_print
       print('[ApiService] Status Code for getServices: ${response.statusCode}');
-      // ignore: avoid_print
       print('[ApiService] Response Body for getServices: ${response.body}');
 
-      if (response.statusCode == 200) {
-        final jsonResponse = jsonDecode(response.body);
-        final BaseResponse<List<Service>>
-        serviceListResponse = BaseResponse.fromJson(jsonResponse, (dataJson) {
-          if (dataJson is List) {
-            return List<Service>.from(
-              dataJson.map((x) => Service.fromJson(x as Map<String, dynamic>)),
-            );
-          }
-          return []; // Mengembalikan list kosong jika dataJson bukan list atau null
-        });
-        // ignore: avoid_print
-        print(
-          '[ApiService] Parsed Services Data Count: ${serviceListResponse.data?.length ?? 0} items',
-        );
-        return serviceListResponse;
-      } else {
-        // ignore: avoid_print
-        print(
-          '[ApiService] Failed to load services: ${response.statusCode} - ${response.body}',
-        );
-        try {
-          final jsonResponse = jsonDecode(response.body);
-          return BaseResponse(
-            message: jsonResponse['message'] ?? 'Failed to load services.',
-            errors:
-                jsonResponse['errors'] is Map
-                    ? Map<String, dynamic>.from(jsonResponse['errors'])
-                    : null,
-            data: null, // Set data to null explicitly for error cases
-          );
-        } catch (_) {
-          return null;
-        }
-      }
+      final BaseResponse<List<Service>> serviceListResponse =
+          _parseAndCreateBaseResponse(response, (dataJson) {
+            if (dataJson is List) {
+              return List<Service>.from(
+                dataJson.map(
+                  (x) => Service.fromJson(x as Map<String, dynamic>),
+                ),
+              );
+            }
+            return [];
+          });
+      print(
+        '[ApiService] Parsed Services Data Count: ${serviceListResponse.data?.length ?? 0} items',
+      );
+      return serviceListResponse;
     } catch (e) {
-      // ignore: avoid_print
       print('[ApiService] Error getting services: $e');
-      return null;
+      return BaseResponse<List<Service>>(
+        message: 'Terjadi kesalahan jaringan: $e',
+        success: false,
+      );
     }
   }
 
-  // Metode addService yang sudah mendukung pengiriman gambar Base64 dan nama karyawan
+  // --- Metode addService ---
   Future<BaseResponse<Service>?> addService(
     String name,
     String description,
@@ -239,33 +386,33 @@ class ApiService {
     final url = Uri.parse('$baseUrl/services');
     final token = await getToken();
     if (token == null) {
-      // ignore: avoid_print
       print(
         '[ApiService] No token available for addService. User not logged in.',
       );
-      return null;
+      return BaseResponse(message: 'Autentikasi diperlukan.', success: false);
     }
 
     Map<String, dynamic> body = {
       'name': name,
       'description': description,
       'price': price,
-      'employee_name': employeeName, // Tambahkan employee_name
+      'employee_name': employeeName,
     };
 
     if (employeeImageFile != null) {
       try {
         Uint8List bytes = await employeeImageFile.readAsBytes();
         String base64Image = base64Encode(bytes);
-        body['employee_photo'] =
-            base64Image; // Tambahkan employee_photo (Base64)
-        // ignore: avoid_print
+        body['employee_photo'] = base64Image;
         print(
           '[ApiService] Employee image converted to Base64. Size: ${base64Image.length} characters.',
         );
       } catch (e) {
-        // ignore: avoid_print
         print('[ApiService] Error converting employee image to Base64: $e');
+        return BaseResponse(
+          message: 'Gagal memproses gambar karyawan.',
+          success: false,
+        );
       }
     }
 
@@ -273,14 +420,16 @@ class ApiService {
       try {
         Uint8List bytes = await serviceImageFile.readAsBytes();
         String base64Image = base64Encode(bytes);
-        body['service_photo'] = base64Image; // Tambahkan service_photo (Base64)
-        // ignore: avoid_print
+        body['service_photo'] = base64Image;
         print(
           '[ApiService] Service image converted to Base64. Size: ${base64Image.length} characters.',
         );
       } catch (e) {
-        // ignore: avoid_print
         print('[ApiService] Error converting service image to Base64: $e');
+        return BaseResponse(
+          message: 'Gagal memproses gambar layanan.',
+          success: false,
+        );
       }
     }
 
@@ -294,50 +443,29 @@ class ApiService {
         body: jsonEncode(body),
       );
 
-      // ignore: avoid_print
       print('[ApiService] Add Service URL: $url');
-      // ignore: avoid_print
       print('[ApiService] Add Service Status Code: ${response.statusCode}');
-      // ignore: avoid_print
       print('[ApiService] Add Service Response Body: ${response.body}');
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final jsonResponse = jsonDecode(response.body);
-        final BaseResponse<Service> addServiceResponse = BaseResponse.fromJson(
-          jsonResponse,
-          (json) => Service.fromJson(json as Map<String, dynamic>),
-        );
-        // ignore: avoid_print
-        print(
-          '[ApiService] Service added successfully: ${addServiceResponse.message}',
-        );
-        return addServiceResponse;
-      } else {
-        // ignore: avoid_print
-        print(
-          '[ApiService] Failed to add service: ${response.statusCode} - ${response.body}',
-        );
-        try {
-          final jsonResponse = jsonDecode(response.body);
-          return BaseResponse(
-            message: jsonResponse['message'] ?? 'Failed to add service.',
-            errors:
-                jsonResponse['errors'] is Map
-                    ? Map<String, dynamic>.from(jsonResponse['errors'])
-                    : null,
-            data: null, // Set data to null explicitly for error cases
+      final BaseResponse<Service> addServiceResponse =
+          _parseAndCreateBaseResponse(
+            response,
+            (json) => Service.fromJson(json as Map<String, dynamic>),
           );
-        } catch (_) {
-          return null;
-        }
-      }
+      print(
+        '[ApiService] Service added successfully: ${addServiceResponse.message}',
+      );
+      return addServiceResponse;
     } catch (e) {
-      // ignore: avoid_print
       print('[ApiService] Error adding service: $e');
-      return null;
+      return BaseResponse<Service>(
+        message: 'Terjadi kesalahan jaringan: $e',
+        success: false,
+      );
     }
   }
 
+  // --- Metode createBooking ---
   Future<BaseResponse<Booking>?> createBooking(
     int serviceId,
     DateTime bookingTime, {
@@ -346,11 +474,10 @@ class ApiService {
     final url = Uri.parse('$baseUrl/bookings');
     final token = await getToken();
     if (token == null) {
-      // ignore: avoid_print
       print(
         '[ApiService] No token available for createBooking. User not logged in.',
       );
-      return null;
+      return BaseResponse(message: 'Autentikasi diperlukan.', success: false);
     }
 
     Map<String, dynamic> body = {
@@ -363,13 +490,15 @@ class ApiService {
         Uint8List bytes = await imageFile.readAsBytes();
         String base64Image = base64Encode(bytes);
         body['booking_image'] = base64Image;
-        // ignore: avoid_print
         print(
           '[ApiService] Image converted to Base64. Size: ${base64Image.length} characters.',
         );
       } catch (e) {
-        // ignore: avoid_print
         print('[ApiService] Error converting image to Base64: $e');
+        return BaseResponse(
+          message: 'Gagal memproses gambar booking.',
+          success: false,
+        );
       }
     }
 
@@ -383,39 +512,28 @@ class ApiService {
         body: jsonEncode(body),
       );
 
-      // ignore: avoid_print
       print('[ApiService] Create Booking URL: $url');
-      // ignore: avoid_print
       print('[ApiService] Create Booking Status Code: ${response.statusCode}');
-      // ignore: avoid_print
       print('[ApiService] Create Booking Response Body: ${response.body}');
 
-      final jsonResponse = jsonDecode(response.body);
-      final BaseResponse<Booking> bookingResponse = BaseResponse.fromJson(
-        jsonResponse,
+      final BaseResponse<Booking> bookingResponse = _parseAndCreateBaseResponse(
+        response,
         (json) => Booking.fromJson(json as Map<String, dynamic>),
       );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        // ignore: avoid_print
-        print(
-          '[ApiService] Booking created successfully: ${bookingResponse.message}',
-        );
-        return bookingResponse;
-      } else {
-        // ignore: avoid_print
-        print(
-          '[ApiService] Failed to create booking: ${response.statusCode} - ${response.body}',
-        );
-        return bookingResponse;
-      }
+      print(
+        '[ApiService] Booking created successfully: ${bookingResponse.message}',
+      );
+      return bookingResponse;
     } catch (e) {
-      // ignore: avoid_print
       print('[ApiService] Error creating booking: $e');
-      return null;
+      return BaseResponse<Booking>(
+        message: 'Terjadi kesalahan jaringan: $e',
+        success: false,
+      );
     }
   }
 
+  // --- Metode updateBooking ---
   Future<BaseResponse<Booking>?> updateBooking(
     int bookingId, {
     String? status,
@@ -424,11 +542,10 @@ class ApiService {
     final url = Uri.parse('$baseUrl/bookings/$bookingId');
     final token = await getToken();
     if (token == null) {
-      // ignore: avoid_print
       print(
         '[ApiService] No token available for updateBooking. User not logged in.',
       );
-      return null;
+      return BaseResponse(message: 'Autentikasi diperlukan.', success: false);
     }
 
     Map<String, dynamic> body = {};
@@ -440,9 +557,11 @@ class ApiService {
     }
 
     if (body.isEmpty) {
-      // ignore: avoid_print
       print('[ApiService] No data provided for booking update.');
-      return BaseResponse(message: 'Tidak ada data untuk diperbarui');
+      return BaseResponse(
+        message: 'Tidak ada data untuk diperbarui',
+        success: false,
+      );
     }
 
     try {
@@ -455,49 +574,37 @@ class ApiService {
         body: jsonEncode(body),
       );
 
-      // ignore: avoid_print
       print('[ApiService] Update Booking URL: $url');
-      // ignore: avoid_print
       print('[ApiService] Update Booking Status Code: ${response.statusCode}');
-      // ignore: avoid_print
       print('[ApiService] Update Booking Response Body: ${response.body}');
 
-      final jsonResponse = jsonDecode(response.body);
-      final BaseResponse<Booking> updateBookingResponse = BaseResponse.fromJson(
-        jsonResponse,
-        (json) => Booking.fromJson(json as Map<String, dynamic>),
+      final BaseResponse<Booking> updateBookingResponse =
+          _parseAndCreateBaseResponse(
+            response,
+            (json) => Booking.fromJson(json as Map<String, dynamic>),
+          );
+      print(
+        '[ApiService] Booking updated successfully: ${updateBookingResponse.message}',
       );
-
-      if (response.statusCode == 200) {
-        // ignore: avoid_print
-        print(
-          '[ApiService] Booking updated successfully: ${updateBookingResponse.message}',
-        );
-        return updateBookingResponse;
-      } else {
-        // ignore: avoid_print
-        print(
-          '[ApiService] Failed to update booking: ${response.statusCode} - ${response.body}',
-        );
-        return updateBookingResponse;
-      }
+      return updateBookingResponse;
     } catch (e) {
-      // ignore: avoid_print
       print('[ApiService] Error updating booking: $e');
-      return null;
+      return BaseResponse<Booking>(
+        message: 'Terjadi kesalahan jaringan: $e',
+        success: false,
+      );
     }
   }
 
+  // --- Metode getRiwayatBooking ---
   Future<BaseResponse<List<riwayat_alias.Datum>>?> getRiwayatBooking() async {
-    // MEMBETULKAN: URL endpoint untuk riwayat booking
     final url = Uri.parse('$baseUrl/bookings');
     final token = await getToken();
     if (token == null) {
-      // ignore: avoid_print
       print(
         '[ApiService] No token available for getRiwayatBooking. User not logged in.',
       );
-      return null;
+      return BaseResponse(message: 'Autentikasi diperlukan.', success: false);
     }
 
     try {
@@ -509,69 +616,46 @@ class ApiService {
         },
       );
 
-      // ignore: avoid_print
       print('[ApiService] Get Riwayat Booking URL: $url');
-      // ignore: avoid_print
       print(
         '[ApiService] Get Riwayat Booking Status Code: ${response.statusCode}',
       );
-      // ignore: avoid_print
       print('[ApiService] Get Riwayat Booking Response Body: ${response.body}');
 
-      if (response.statusCode == 200) {
-        final jsonResponse = jsonDecode(response.body);
-        final BaseResponse<List<riwayat_alias.Datum>>
-        riwayatListResponse = BaseResponse.fromJson(jsonResponse, (dataJson) {
-          if (dataJson is List) {
-            return List<riwayat_alias.Datum>.from(
-              dataJson.map(
-                (x) => riwayat_alias.Datum.fromJson(x as Map<String, dynamic>),
-              ),
-            );
-          }
-          return []; // Mengembalikan list kosong jika dataJson bukan list atau null
-        });
-        // ignore: avoid_print
-        print(
-          '[ApiService] Parsed Riwayat Booking Data Count: ${riwayatListResponse.data?.length ?? 0} items',
-        );
-        return riwayatListResponse;
-      } else {
-        // ignore: avoid_print
-        print(
-          '[ApiService] Failed to load riwayat booking: ${response.statusCode} - ${response.body}',
-        );
-        try {
-          final jsonResponse = jsonDecode(response.body);
-          return BaseResponse(
-            message:
-                jsonResponse['message'] ?? 'Failed to load riwayat booking.',
-            errors:
-                jsonResponse['errors'] is Map
-                    ? Map<String, dynamic>.from(jsonResponse['errors'])
-                    : null,
-            data: null, // Set data to null explicitly for error cases
-          );
-        } catch (_) {
-          return null;
-        }
-      }
+      final BaseResponse<List<riwayat_alias.Datum>> riwayatListResponse =
+          _parseAndCreateBaseResponse(response, (dataJson) {
+            if (dataJson is List) {
+              return List<riwayat_alias.Datum>.from(
+                dataJson.map(
+                  (x) =>
+                      riwayat_alias.Datum.fromJson(x as Map<String, dynamic>),
+                ),
+              );
+            }
+            return [];
+          });
+      print(
+        '[ApiService] Parsed Riwayat Booking Data Count: ${riwayatListResponse.data?.length ?? 0} items',
+      );
+      return riwayatListResponse;
     } catch (e) {
-      // ignore: avoid_print
       print('[ApiService] Error getting riwayat booking: $e');
-      return null;
+      return BaseResponse<List<riwayat_alias.Datum>>(
+        message: 'Terjadi kesalahan jaringan: $e',
+        success: false,
+      );
     }
   }
 
+  // --- Metode deleteBooking ---
   Future<BaseResponse<dynamic>?> deleteBooking(int bookingId) async {
     final url = Uri.parse('$baseUrl/bookings/$bookingId');
     final token = await getToken();
     if (token == null) {
-      // ignore: avoid_print
       print(
         '[ApiService] No token available for deleteBooking. User not logged in.',
       );
-      return null;
+      return BaseResponse(message: 'Autentikasi diperlukan.', success: false);
     }
 
     try {
@@ -583,36 +667,26 @@ class ApiService {
         },
       );
 
-      // ignore: avoid_print
       print('[ApiService] Delete Booking URL: $url');
-      // ignore: avoid_print
       print('[ApiService] Delete Booking Status Code: ${response.statusCode}');
-      // ignore: avoid_print
       print('[ApiService] Delete Booking Response Body: ${response.body}');
 
-      final jsonResponse = jsonDecode(response.body);
-      final BaseResponse<dynamic> deleteResponse = BaseResponse.fromJson(
-        jsonResponse,
-        (json) => null, // Ini akan mengatur data di BaseResponse menjadi null
+      // Gunakan helper _parseAndCreateBaseResponse, dengan fromJsonT yang mengembalikan null karena tidak ada data yang diharapkan
+      final BaseResponse<dynamic> deleteResponse = _parseAndCreateBaseResponse(
+        response,
+        (json) => null, // Data tidak diharapkan setelah delete
       );
 
-      if (response.statusCode == 200) {
-        // ignore: avoid_print
-        print(
-          '[ApiService] Booking deleted successfully: ${deleteResponse.message}',
-        );
-        return deleteResponse;
-      } else {
-        // ignore: avoid_print
-        print(
-          '[ApiService] Failed to delete booking: ${response.statusCode} - ${response.body}',
-        );
-        return deleteResponse;
-      }
+      print(
+        '[ApiService] Booking deleted successfully: ${deleteResponse.message}',
+      );
+      return deleteResponse;
     } catch (e) {
-      // ignore: avoid_print
       print('[ApiService] Error deleting booking: $e');
-      return null;
+      return BaseResponse<dynamic>(
+        message: 'Terjadi kesalahan jaringan: $e',
+        success: false,
+      );
     }
   }
 }

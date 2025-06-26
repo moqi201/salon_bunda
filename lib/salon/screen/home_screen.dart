@@ -51,13 +51,6 @@ class _HomeScreenState extends State<HomeScreen> {
     const _HomeContent(), // Main Home content
     const ServiceListScreen(), // Services
     const RiwayatBookingScreen(), // Booking History
-    // SEMENTARA: Kembali ke placeholder teks.
-    // Ganti dengan 'const BookingManagementScreen()' setelah konstruktornya diperbaiki.
-    const Center(
-      child: Text(
-        'Halaman Verifikasi Booking (Perlu BookingManagementScreen diperbaiki)',
-      ),
-    ),
     const ProfileScreen(), // Profile
   ];
 
@@ -195,11 +188,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ), // Changed to appropriate Bookings icon
             label: 'Bookings',
           ),
-          // BARU: Menambahkan item untuk "Verifikasi Booking"
-          BottomNavigationBarItem(
-            icon: Icon(Icons.verified), // Icon untuk verifikasi
-            label: 'Verifikasi Booking',
-          ),
+          // BARU: Menambahkan item untuk "Verifikasi Booking
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
         currentIndex: _selectedIndex,

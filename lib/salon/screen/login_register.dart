@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:salon_bunda/salon/model/login_models.dart'; // Pastikan nama file ini login_model.dart (singular)
+// import 'package:salon_bunda/salon/model/login_models.dart'; // Ini sepertinya tidak lagi digunakan, bisa dihapus jika memang tidak ada kelas LoginModels di dalamnya
 import 'package:salon_bunda/salon/model/user_model.dart'; // Import user_model.dart untuk kelas User
 import 'package:salon_bunda/salon/service/api_service.dart';
 import 'package:salon_bunda/salon/widget/custom_text_field.dart';
-import 'package:salon_bunda/salon/model/base_response.dart'; // MEMBETULKAN: Mengubah dari base_response.dart ke base_response_model.dart
-import 'package:salon_bunda/salon/model/auth_response.dart'; // MENAMBAHKAN: Import AuthData dari auth_response_model.dart
+import 'package:salon_bunda/salon/model/base_response.dart'; // Pastikan ini adalah BaseResponse yang sudah diubah ke nullable (String? message, bool? success)
+import 'package:salon_bunda/salon/model/auth_response.dart'; // MENAMBAHKAN: Import AuthData dari auth_response.dart (bukan auth_response_model.dart jika nama filenya auth_response.dart)
 import 'home_screen.dart'; // Navigasi ke Home Screen setelah login
-import 'package:salon_bunda/salon/screen/profil_screen.dart'; // MEMBETULKAN: Mengubah dari profil_screen.dart ke profile_screen.dart
-import 'package:salon_bunda/salon/screen/riwayat_booking.dart'; // MEMBETULKAN: Mengubah dari riwayat_booking.dart ke riwayat_booking_screen.dart
+// import 'package:salon_bunda/salon/screen/profil_screen.dart'; // Jika tidak digunakan, bisa dihapus
+// import 'package:salon_bunda/salon/screen/riwayat_booking.dart'; // Jika tidak digunakan, bisa dihapus
 
 class LoginRegisterScreen extends StatefulWidget {
   const LoginRegisterScreen({Key? key}) : super(key: key);
@@ -43,16 +43,23 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
       );
     }
 
+    // Pastikan widget masih mounted sebelum menggunakan context
+    if (!mounted) return;
+
     setState(() {
       _isLoading = false;
     });
 
-    if (authResponse != null && authResponse.data?.token != null) {
+    // Perbaikan penanganan respons API dengan null-safety yang benar
+    if (authResponse != null && authResponse.success == true) {
+      // Cek eksplisit success == true
       // Autentikasi berhasil
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(authResponse.message),
-        ), // Menampilkan pesan sukses dari API
+          content: Text(
+            authResponse.message ?? 'Autentikasi berhasil!',
+          ), // Gunakan ?? untuk pesan default
+        ),
       );
       // Navigasi ke home screen
       Navigator.pushReplacement(
@@ -61,16 +68,26 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
       );
     } else {
       // Autentikasi gagal
-      String errorMessage = 'Authentication failed. Please try again.';
-      if (authResponse != null && authResponse.errors != null) {
-        // Jika ada pesan error dari API (misal: validasi)
-        errorMessage = authResponse.message; // Gunakan pesan utama
-        authResponse.errors?.forEach((key, value) {
-          errorMessage += '\n${value[0]}'; // Tambahkan detail error validasi
-        });
-      } else if (authResponse != null && authResponse.message.isNotEmpty) {
+      String errorMessage = 'Autentikasi gagal. Silakan coba lagi.';
+      if (authResponse != null) {
         // Jika ada pesan umum dari API
-        errorMessage = authResponse.message;
+        if (authResponse.message != null && authResponse.message!.isNotEmpty) {
+          // Cek null dan empty string
+          errorMessage =
+              authResponse.message!; // Gunakan ! setelah cek isNotEmpty
+        }
+
+        // Jika ada pesan error validasi dari API
+        if (authResponse.errors != null) {
+          authResponse.errors?.forEach((key, value) {
+            if (value is List) {
+              // Pastikan value adalah List
+              errorMessage += '\n${value.join(', ')}'; // Gabungkan list error
+            } else {
+              errorMessage += '\n$value'; // Jika error bukan list
+            }
+          });
+        }
       }
       ScaffoldMessenger.of(
         context,
@@ -93,6 +110,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
         title: Text(_isRegisterMode ? 'Register' : 'Login'),
         centerTitle: true,
         backgroundColor: Colors.blueAccent,
+        foregroundColor: Colors.white, // Tambahkan ini untuk warna teks AppBar
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -110,7 +128,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
               ),
               const SizedBox(height: 30),
               if (_isRegisterMode)
-              CustomTextField(controller: _nameController, labelText: 'Name'),
+                CustomTextField(controller: _nameController, labelText: 'Name'),
               CustomTextField(
                 controller: _emailController,
                 labelText: 'Email',
@@ -134,12 +152,15 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8.0),
                         ),
+                        foregroundColor:
+                            Colors
+                                .white, // Tambahkan ini untuk warna teks tombol
                       ),
                       child: Text(
                         _isRegisterMode ? 'Register' : 'Login',
                         style: const TextStyle(
                           fontSize: 18,
-                          color: Colors.white,
+                          // color: Colors.white, // Dihapus karena sudah di set di foregroundColor
                         ),
                       ),
                     ),

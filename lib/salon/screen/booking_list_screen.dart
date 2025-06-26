@@ -4,7 +4,6 @@ import 'package:salon_bunda/salon/model/base_response.dart';
 import 'package:salon_bunda/salon/model/booking_model.dart';
 import 'package:salon_bunda/salon/model/service_model.dart'; // Mengimport Service model secara langsung
 import 'package:salon_bunda/salon/service/api_service.dart';
-// MENAMBAHKAN: Import BaseResponse
 
 class BookingScreen extends StatefulWidget {
   final Service service; // Menggunakan kelas Service secara langsung
@@ -48,6 +47,16 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Future<void> _submitBooking() async {
+    // Memastikan service.id tidak null sebelum melakukan booking
+    if (widget.service.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ID Layanan tidak valid. Tidak dapat membuat booking.'),
+        ),
+      );
+      return;
+    }
+
     if (_selectedDate == null || _selectedTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -70,7 +79,9 @@ class _BookingScreenState extends State<BookingScreen> {
     );
 
     BaseResponse<Booking>? result = await _apiService.createBooking(
-      widget.service.id!,
+      widget
+          .service
+          .id!, // Menggunakan '!' karena sudah dipastikan tidak null di atas
       bookingDateTime,
     );
 
@@ -78,17 +89,35 @@ class _BookingScreenState extends State<BookingScreen> {
       _isLoading = false;
     });
 
-    if (result != null && result.data != null) {
-      ScaffoldMessenger.of(
+    // Penanganan respons API
+    // Karena BaseResponse.success dan BaseResponse.message sekarang nullable,
+    // kita harus memeriksa null dan memberikan nilai default jika perlu.
+    if (result != null && result.success == true) {
+      // Cek eksplisit result.success
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result.message ?? 'Booking berhasil dibuat!',
+          ), // Beri pesan default
+        ),
+      );
+      Navigator.pop(
         context,
-      ).showSnackBar(SnackBar(content: Text(result.message)));
-      Navigator.pop(context, true);
+        true,
+      ); // Kembali ke layar sebelumnya dengan status sukses
     } else {
+      // Tangani kasus gagal atau null response
       String errorMessage =
           result?.message ?? 'Booking gagal. Silakan coba lagi.';
       if (result != null && result.errors != null) {
+        // Gabungkan semua pesan error validasi
         result.errors?.forEach((key, value) {
-          errorMessage += '\n${value[0]}';
+          if (value is List) {
+            errorMessage +=
+                '\n${value.join(', ')}'; // Gabungkan list error jika ada
+          } else {
+            errorMessage += '\n$value'; // Jika error bukan list
+          }
         });
       }
       ScaffoldMessenger.of(
@@ -104,11 +133,12 @@ class _BookingScreenState extends State<BookingScreen> {
         title: const Text('Buat Booking'),
         centerTitle: true,
         backgroundColor: Colors.indigo,
+        foregroundColor:
+            Colors.white, // Menambahkan foregroundColor untuk teks judul
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(
-          // Tambahkan SingleChildScrollView
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -135,6 +165,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   ),
                 ),
               const SizedBox(height: 15),
+              // Menggunakan ?? 'N/A' untuk properti String yang bisa null
               Text(
                 'Layanan: ${widget.service.name ?? 'N/A'}',
                 style: const TextStyle(
@@ -156,7 +187,10 @@ class _BookingScreenState extends State<BookingScreen> {
 
               // Bagian Informasi Karyawan
               if (widget.service.employeeName != null &&
-                  widget.service.employeeName!.isNotEmpty)
+                  widget
+                      .service
+                      .employeeName!
+                      .isNotEmpty) // Cek null dan empty string
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -171,7 +205,10 @@ class _BookingScreenState extends State<BookingScreen> {
                     Row(
                       children: [
                         if (widget.service.employeePhotoUrl != null &&
-                            widget.service.employeePhotoUrl!.isNotEmpty)
+                            widget
+                                .service
+                                .employeePhotoUrl!
+                                .isNotEmpty) // Cek null dan empty string
                           ClipOval(
                             child: Image.network(
                               widget.service.employeePhotoUrl!,
@@ -192,7 +229,7 @@ class _BookingScreenState extends State<BookingScreen> {
                           ),
                         const SizedBox(width: 15),
                         Text(
-                          'Nama Karyawan: ${widget.service.employeeName}',
+                          'Nama Karyawan: ${widget.service.employeeName ?? 'N/A'}', // Menggunakan ?? 'N/A'
                           style: const TextStyle(fontSize: 18),
                         ),
                       ],
