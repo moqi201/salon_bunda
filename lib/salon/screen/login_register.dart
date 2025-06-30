@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
-// import 'package:salon_bunda/salon/model/login_models.dart'; // Ini sepertinya tidak lagi digunakan, bisa dihapus jika memang tidak ada kelas LoginModels di dalamnya
-import 'package:salon_bunda/salon/model/user_model.dart'; // Import user_model.dart untuk kelas User
+import 'package:salon_bunda/salon/model/auth_response.dart';
+import 'package:salon_bunda/salon/model/base_response.dart';
 import 'package:salon_bunda/salon/service/api_service.dart';
 import 'package:salon_bunda/salon/widget/custom_text_field.dart';
-import 'package:salon_bunda/salon/model/base_response.dart'; // Pastikan ini adalah BaseResponse yang sudah diubah ke nullable (String? message, bool? success)
-import 'package:salon_bunda/salon/model/auth_response.dart'; // MENAMBAHKAN: Import AuthData dari auth_response.dart (bukan auth_response_model.dart jika nama filenya auth_response.dart)
+
 import 'home_screen.dart'; // Navigasi ke Home Screen setelah login
-// import 'package:salon_bunda/salon/screen/profil_screen.dart'; // Jika tidak digunakan, bisa dihapus
-// import 'package:salon_bunda/salon/screen/riwayat_booking.dart'; // Jika tidak digunakan, bisa dihapus
 
 class LoginRegisterScreen extends StatefulWidget {
-  const LoginRegisterScreen({Key? key}) : super(key: key);
+  const LoginRegisterScreen({super.key});
 
   @override
   State<LoginRegisterScreen> createState() => _LoginRegisterScreenState();
@@ -23,13 +20,62 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
   final ApiService _apiService = ApiService();
   bool _isLoading = false;
   bool _isRegisterMode = false;
+  bool _isPasswordVisible = false; // State untuk toggle visibilitas password
+
+  // Definisikan palet warna yang konsisten
+  static const Color _primaryColor = Color(0xFF4A90E2); // Biru yang menarik
+  static const Color _accentColor = Color(0xFF50E3C2); // Aksen hijau muda
+  static const Color _textColor = Color(0xFF333333); // Warna teks gelap
+  static const Color _lightTextColor = Color(
+    0xFF666666,
+  ); // Warna teks lebih terang
+  static const Color _backgroundColor = Color(
+    0xFFF0F2F5,
+  ); // Latar belakang abu-abu muda
+  static const Color _errorColor = Color(0xFFD0021B); // Merah untuk error
+
+  void _showSnackBar(String message, {Color? backgroundColor}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        backgroundColor: backgroundColor ?? _primaryColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        elevation: 8,
+      ),
+    );
+  }
 
   Future<void> _performAuth(bool isRegister) async {
+    // Validasi sederhana sebelum API call
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      _showSnackBar(
+        'Email dan Password harus diisi.',
+        backgroundColor: _errorColor,
+      );
+      return;
+    }
+    if (isRegister && _nameController.text.isEmpty) {
+      _showSnackBar(
+        'Nama harus diisi untuk pendaftaran.',
+        backgroundColor: _errorColor,
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
-    BaseResponse<AuthData>? authResponse; // Menggunakan BaseResponse<AuthData>
+    BaseResponse<AuthData>? authResponse;
     if (isRegister) {
       authResponse = await _apiService.register(
         _nameController.text,
@@ -43,55 +89,39 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
       );
     }
 
-    // Pastikan widget masih mounted sebelum menggunakan context
     if (!mounted) return;
 
     setState(() {
       _isLoading = false;
     });
 
-    // Perbaikan penanganan respons API dengan null-safety yang benar
     if (authResponse != null && authResponse.success == true) {
-      // Cek eksplisit success == true
-      // Autentikasi berhasil
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            authResponse.message ?? 'Autentikasi berhasil!',
-          ), // Gunakan ?? untuk pesan default
-        ),
+      _showSnackBar(
+        authResponse.message ?? 'Autentikasi berhasil!',
+        backgroundColor: _accentColor,
       );
-      // Navigasi ke home screen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const HomeScreen()),
       );
     } else {
-      // Autentikasi gagal
       String errorMessage = 'Autentikasi gagal. Silakan coba lagi.';
       if (authResponse != null) {
-        // Jika ada pesan umum dari API
         if (authResponse.message != null && authResponse.message!.isNotEmpty) {
-          // Cek null dan empty string
-          errorMessage =
-              authResponse.message!; // Gunakan ! setelah cek isNotEmpty
+          errorMessage = authResponse.message!;
         }
 
-        // Jika ada pesan error validasi dari API
         if (authResponse.errors != null) {
           authResponse.errors?.forEach((key, value) {
             if (value is List) {
-              // Pastikan value adalah List
-              errorMessage += '\n${value.join(', ')}'; // Gabungkan list error
+              errorMessage += '\n${value.join(', ')}';
             } else {
-              errorMessage += '\n$value'; // Jika error bukan list
+              errorMessage += '\n$value';
             }
           });
         }
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(errorMessage)));
+      _showSnackBar(errorMessage, backgroundColor: _errorColor);
     }
   }
 
@@ -106,77 +136,179 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _backgroundColor, // Latar belakang keseluruhan layar
       appBar: AppBar(
-        title: Text(_isRegisterMode ? 'Register' : 'Login'),
+        title: Text(
+          _isRegisterMode ? 'Daftar' : 'Masuk',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         centerTitle: true,
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white, // Tambahkan ini untuk warna teks AppBar
+        backgroundColor: _primaryColor,
+        elevation: 0, // Hapus shadow AppBar
       ),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 40.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // Judul utama
               Text(
                 _isRegisterMode ? 'Buat Akun Baru' : 'Selamat Datang Kembali!',
-                style: const TextStyle(
+                textAlign: TextAlign.center,
+                style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Colors.blueAccent,
+                  color: _primaryColor,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _isRegisterMode
+                    ? 'Bergabunglah dengan Salon Bunda sekarang.'
+                    : 'Silakan masuk untuk melanjutkan.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: _lightTextColor),
+              ),
+              const SizedBox(height: 40),
+
+              // Input Nama (hanya untuk Register)
+              if (_isRegisterMode) ...[
+                CustomTextField(
+                  controller: _nameController,
+                  labelText: 'Nama Lengkap',
+                  suffixIcon: Icon(Icons.person), // Tambahkan ikon
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              TextField(
+                // Menggunakan TextField standar untuk kontrol lebih
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  labelStyle: TextStyle(color: _lightTextColor),
+                  prefixIcon: Icon(
+                    Icons.email,
+                    color: _primaryColor,
+                  ), // Ikon gembok
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10.0),
+                    borderSide: BorderSide(color: _primaryColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10.0),
+                    borderSide: BorderSide(color: _primaryColor, width: 2.0),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10.0),
+                    borderSide: BorderSide(
+                      color: Colors.grey.shade400,
+                      width: 1.0,
+                    ),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Input Password dengan Toggle Mata
+              TextField(
+                // Menggunakan TextField standar untuk kontrol lebih
+                controller: _passwordController,
+                obscureText: !_isPasswordVisible,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  labelStyle: TextStyle(color: _lightTextColor),
+                  prefixIcon: Icon(
+                    Icons.lock,
+                    color: _primaryColor,
+                  ), // Ikon gembok
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _isPasswordVisible
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                      color: _primaryColor, // Warna ikon toggle
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _isPasswordVisible = !_isPasswordVisible;
+                      });
+                    },
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10.0),
+                    borderSide: BorderSide(color: _primaryColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10.0),
+                    borderSide: BorderSide(color: _primaryColor, width: 2.0),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10.0),
+                    borderSide: BorderSide(
+                      color: Colors.grey.shade400,
+                      width: 1.0,
+                    ),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
                 ),
               ),
               const SizedBox(height: 30),
-              if (_isRegisterMode)
-                CustomTextField(controller: _nameController, labelText: 'Name'),
-              CustomTextField(
-                controller: _emailController,
-                labelText: 'Email',
-                keyboardType: TextInputType.emailAddress,
-              ),
-              CustomTextField(
-                controller: _passwordController,
-                labelText: 'Password',
-                obscureText: true,
-              ),
-              const SizedBox(height: 20),
+
+              // Tombol Login/Register
               _isLoading
-                  ? const CircularProgressIndicator()
+                  ? const CircularProgressIndicator(color: _primaryColor)
                   : SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
                       onPressed: () => _performAuth(_isRegisterMode),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
+                        backgroundColor: _primaryColor,
+                        foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8.0),
+                          borderRadius: BorderRadius.circular(10.0),
                         ),
-                        foregroundColor:
-                            Colors
-                                .white, // Tambahkan ini untuk warna teks tombol
-                      ),
-                      child: Text(
-                        _isRegisterMode ? 'Register' : 'Login',
-                        style: const TextStyle(
+                        elevation: 5,
+                        textStyle: const TextStyle(
                           fontSize: 18,
-                          // color: Colors.white, // Dihapus karena sudah di set di foregroundColor
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
+                      child: Text(_isRegisterMode ? 'Daftar' : 'Masuk'),
                     ),
                   ),
               const SizedBox(height: 20),
+
+              // Tombol Toggle Mode (Login/Register)
               TextButton(
                 onPressed: () {
                   setState(() {
                     _isRegisterMode = !_isRegisterMode;
+                    // Bersihkan controller saat beralih mode
+                    _emailController.clear();
+                    _passwordController.clear();
+                    _nameController.clear();
+                    _isPasswordVisible = false; // Reset visibility
                   });
                 },
                 child: Text(
                   _isRegisterMode
-                      ? 'Sudah punya akun? Login di sini'
+                      ? 'Sudah punya akun? Masuk di sini'
                       : 'Belum punya akun? Daftar di sini',
-                  style: const TextStyle(color: Colors.blueAccent),
+                  style: TextStyle(
+                    color: _primaryColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],

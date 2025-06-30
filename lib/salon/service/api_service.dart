@@ -1,7 +1,6 @@
 // lib/salon/service/api_service.dart
 
 import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart'; // Import XFile
@@ -352,15 +351,15 @@ class ApiService {
 
       final BaseResponse<List<Service>> serviceListResponse =
           _parseAndCreateBaseResponse(response, (dataJson) {
-            if (dataJson is List) {
-              return List<Service>.from(
-                dataJson.map(
-                  (x) => Service.fromJson(x as Map<String, dynamic>),
-                ),
-              );
-            }
-            return [];
-          });
+        if (dataJson is List) {
+          return List<Service>.from(
+            dataJson.map(
+              (x) => Service.fromJson(x as Map<String, dynamic>),
+            ),
+          );
+        }
+        return [];
+      });
       print(
         '[ApiService] Parsed Services Data Count: ${serviceListResponse.data?.length ?? 0} items',
       );
@@ -624,16 +623,16 @@ class ApiService {
 
       final BaseResponse<List<riwayat_alias.Datum>> riwayatListResponse =
           _parseAndCreateBaseResponse(response, (dataJson) {
-            if (dataJson is List) {
-              return List<riwayat_alias.Datum>.from(
-                dataJson.map(
-                  (x) =>
-                      riwayat_alias.Datum.fromJson(x as Map<String, dynamic>),
-                ),
-              );
-            }
-            return [];
-          });
+        if (dataJson is List) {
+          return List<riwayat_alias.Datum>.from(
+            dataJson.map(
+              (x) =>
+                  riwayat_alias.Datum.fromJson(x as Map<String, dynamic>),
+            ),
+          );
+        }
+        return [];
+      });
       print(
         '[ApiService] Parsed Riwayat Booking Data Count: ${riwayatListResponse.data?.length ?? 0} items',
       );
@@ -683,6 +682,59 @@ class ApiService {
       return deleteResponse;
     } catch (e) {
       print('[ApiService] Error deleting booking: $e');
+      return BaseResponse<dynamic>(
+        message: 'Terjadi kesalahan jaringan: $e',
+        success: false,
+      );
+    }
+  }
+
+  // --- Metode deleteService ---
+  Future<BaseResponse<dynamic>?> deleteService(int serviceId) async {
+    final url = Uri.parse('$baseUrl/services/$serviceId');
+    final token = await getToken();
+    if (token == null) {
+      print(
+        '[ApiService] No token available for deleteService. User not logged in.',
+      );
+      return BaseResponse(message: 'Autentikasi diperlukan.', success: false);
+    }
+
+    try {
+      final response = await http.delete(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      print('[ApiService] Delete Service URL: $url');
+      print('[ApiService] Delete Service Status Code: ${response.statusCode}');
+      print('[ApiService] Delete Service Response Body: ${response.body}');
+
+      // Gunakan helper _parseAndCreateBaseResponse.
+      // Untuk operasi DELETE, biasanya tidak ada data yang dikembalikan,
+      // jadi fromJsonT bisa mengembalikan null atau Map<String, dynamic> kosong.
+      final BaseResponse<dynamic> deleteResponse = _parseAndCreateBaseResponse(
+        response,
+        (json) => null, // Tidak mengharapkan data setelah delete
+      );
+
+      // Anda mungkin ingin menambahkan logika khusus untuk status kode DELETE
+      // Misalnya, 204 No Content juga umum untuk DELETE yang berhasil.
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        print('[ApiService] Service deleted successfully.');
+        // Pastikan BaseResponse.success diatur dengan benar oleh _parseAndCreateBaseResponse
+        return deleteResponse;
+      } else {
+        print(
+          '[ApiService] Failed to delete service: ${deleteResponse.message} (Status: ${response.statusCode})',
+        );
+        return deleteResponse; // Akan mengandung pesan error dari _parseAndCreateBaseResponse
+      }
+    } catch (e) {
+      print('[ApiService] Error deleting service: $e');
       return BaseResponse<dynamic>(
         message: 'Terjadi kesalahan jaringan: $e',
         success: false,

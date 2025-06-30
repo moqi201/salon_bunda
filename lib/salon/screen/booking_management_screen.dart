@@ -23,6 +23,36 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
   // Tambahkan variabel untuk melacak apakah ada perubahan yang terjadi
   bool _hasChanges = false;
 
+  // Definisikan palet warna konsisten
+  static const Color _primaryAccentBlue = Color(
+    0xFF0A2342,
+  ); // Deep, sophisticated blue
+  static const Color _darkCharcoal = Color(0xFF212121); // Deep charcoal
+  static const Color _lightGreyBackground = Color(
+    0xFFF5F5F5,
+  ); // Lighter grey for background
+  static const Color _mediumGreyText = Color(
+    0xFF424242,
+  ); // Darker grey for details
+  static const Color _lightDivider = Color(
+    0xFFE0E0E0,
+  ); // Lighter grey for dividers
+  static const Color _iconGrey = Color(
+    0xFF757575,
+  ); // Slightly darker grey for icons
+  static const Color _redError = Color(
+    0xFFD32F2F,
+  ); // A clear red for error/cancel
+  static const Color _greenSuccess = Color(
+    0xFF2E7D32,
+  ); // Darker green for confirmed
+  static const Color _orangePending = Color(
+    0xFFEF6C00,
+  ); // Darker orange for pending
+  static const Color _blueCompleted = Color(
+    0xFF1976D2,
+  ); // A shade of blue for completed
+
   @override
   void initState() {
     super.initState();
@@ -44,6 +74,9 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
     super.dispose();
   }
 
+  // NOTE: Fungsi ini sekarang mengambil semua riwayat dan mencari ID.
+  // Idealnya, API Anda harus memiliki endpoint untuk mengambil booking berdasarkan ID.
+  // Contoh: await _apiService.getBookingById(id);
   Future<void> _fetchSingleBooking(int id) async {
     if (!mounted) return;
 
@@ -74,7 +107,10 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
           });
         } catch (e) {
           debugPrint('Error finding booking with ID $id in list: $e');
-          _showSnackBar('Terjadi kesalahan saat mencari booking: $e');
+          _showSnackBar(
+            'Terjadi kesalahan saat mencari booking: $e',
+            _redError,
+          );
           if (!mounted) return;
           setState(() {
             _currentBooking = null;
@@ -84,6 +120,7 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
         _showSnackBar(
           response?.message ??
               'Gagal memuat detail booking. Data kosong atau gagal.',
+          _redError,
         );
         if (!mounted) return;
         setState(() {
@@ -93,7 +130,10 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
     } catch (e) {
       if (!mounted) return;
       debugPrint('Error fetching single booking: $e');
-      _showSnackBar('Terjadi kesalahan saat memuat detail booking: $e');
+      _showSnackBar(
+        'Terjadi kesalahan saat memuat detail booking: $e',
+        _redError,
+      );
       setState(() {
         _currentBooking = null;
       });
@@ -106,26 +146,36 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
     }
   }
 
-  void _showSnackBar(String message) {
+  void _showSnackBar(String message, [Color? color]) {
     if (mounted && context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message, style: const TextStyle(color: Colors.white)),
+          backgroundColor: color ?? _darkCharcoal,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          margin: const EdgeInsets.all(20),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          elevation: 8,
+        ),
+      );
     }
   }
 
   Color _getStatusColor(String? status) {
     switch (status?.toLowerCase()) {
       case 'confirmed':
-        return Colors.green.shade700;
+        return _greenSuccess;
       case 'pending':
-        return Colors.orange.shade700;
+        return _orangePending;
       case 'cancelled':
-        return Colors.red.shade700;
+        return _redError;
       case 'completed':
-        return Colors.blue.shade700;
+        return _blueCompleted;
       default:
-        return Colors.grey.shade700;
+        return _iconGrey;
     }
   }
 
@@ -145,7 +195,7 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
             if (mounted && widget.bookingId != null) {
               _fetchSingleBooking(widget.bookingId!);
               // Set flag bahwa ada perubahan
-              _hasChanges = true; // <--- PENTING: Tandai ada perubahan
+              _hasChanges = true; // <--- Tandai ada perubahan
             }
           },
         );
@@ -156,84 +206,131 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      // Kembalikan _hasChanges saat PopScope dipicu (tombol kembali fisik/gesture)
-      canPop: true,
+      canPop: true, // Biarkan PopScope mengizinkan pop default
       onPopInvoked: (didPop) {
+        // Jika pop dipicu oleh gesture back atau tombol sistem,
+        // dan belum ada Navigator.pop yang mengembalikan nilai _hasChanges,
+        // kita mengembalikannya di sini.
         if (didPop) {
-          // Hanya pop dengan nilai jika ada perubahan
-          if (mounted && _hasChanges) {
-            Navigator.pop(context, true);
-          } else if (mounted) {
-            // Jika tidak ada perubahan, pop tanpa nilai (atau false)
-            Navigator.pop(context, false);
+          if (mounted && Navigator.canPop(context)) {
+            // Hanya pop jika memang ada rute yang bisa di-pop
+            // dan pastikan tidak pop ganda.
+            // Gunakan addPostFrameCallback untuk menghindari isu _debugLocked
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                // Periksa mounted lagi setelah callback
+                Navigator.pop(context, _hasChanges);
+              }
+            });
           }
         }
       },
       child: Scaffold(
+        backgroundColor: _lightGreyBackground,
         appBar: AppBar(
-          title: Text('Manajemen Booking ID: ${widget.bookingId ?? "N/A"}'),
+          title: Text(
+            'Manage Booking ID: ${widget.bookingId ?? "N/A"}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+            ),
+          ),
           centerTitle: true,
-          backgroundColor: Colors.deepOrange,
+          backgroundColor: _darkCharcoal, // Darker AppBar color
+          elevation: 8,
+          shadowColor: Colors.black.withOpacity(0.5),
+          iconTheme: const IconThemeData(color: Colors.white),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
-              // Kembali dengan nilai _hasChanges
-              Navigator.pop(
-                context,
-                _hasChanges,
-              ); // <--- PENTING: Gunakan _hasChanges
+              // Kembali dengan nilai _hasChanges.
+              // Wrap dengan addPostFrameCallback untuk menghindari _debugLocked.
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  Navigator.pop(context, _hasChanges);
+                }
+              });
             },
           ),
         ),
         body:
             _isLoadingInitial
-                ? const Center(child: CircularProgressIndicator())
+                ? Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      _primaryAccentBlue,
+                    ),
+                  ),
+                )
                 : _currentBooking == null
                 ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        widget.bookingId == null
-                            ? 'Tidak ada ID Booking yang diberikan.'
-                            : 'Detail Booking dengan ID ${widget.bookingId} tidak ditemukan.',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(
-                            context,
-                            false,
-                          ); // <--- Kembali dengan false jika tidak ada booking
-                        },
-                        child: const Text('Kembali ke Riwayat Booking'),
-                      ),
-                    ],
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons
+                              .sentiment_dissatisfied, // Icon yang lebih sesuai
+                          color: _iconGrey,
+                          size: 60,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          widget.bookingId == null
+                              ? 'No Booking ID provided.'
+                              : 'Booking details for ID ${widget.bookingId} not found.',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: _mediumGreyText,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: () {
+                            // Kembali dengan nilai false karena tidak ada booking
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted) {
+                                Navigator.pop(context, false);
+                              }
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _primaryAccentBlue,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text('Back to Booking History'),
+                        ),
+                      ],
+                    ),
                   ),
                 )
                 : Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(20.0), // Padding lebih besar
                   child: SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Layanan: ${_currentBooking!.service?.name ?? 'N/A'}',
+                          'Service: ${_currentBooking!.service?.name ?? 'N/A'}',
                           style: const TextStyle(
-                            fontSize: 22,
+                            fontSize: 24, // Ukuran font lebih besar
                             fontWeight: FontWeight.bold,
-                            color: Colors.deepPurple,
+                            color: _darkCharcoal, // Warna utama untuk judul
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
                         _buildDetailRow(
-                          'ID Booking',
+                          'Booking ID',
                           '${_currentBooking!.id ?? 'N/A'}',
                         ),
                         _buildDetailRow(
-                          'Waktu Booking',
+                          'Booking Time',
                           _currentBooking!.bookingTime != null
                               ? DateFormat(
                                 'dd MMM yyyy, HH:mm',
@@ -246,18 +343,18 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
                           color: _getStatusColor(_currentBooking!.status),
                         ),
                         _buildDetailRow(
-                          'Harga',
-                          'Rp ${_currentBooking!.service?.price?.toStringAsFixed(0) ?? 'N/A'}',
+                          'Price',
+                          'Rp ${NumberFormat('#,##0').format(_currentBooking!.service?.price ?? 0)}',
                         ),
                         _buildDetailRow(
-                          'Karyawan',
+                          'Barber',
                           _currentBooking!.service?.employeeName ?? 'N/A',
                         ),
                         _buildDetailRow(
-                          'Deskripsi Layanan',
+                          'Service Description',
                           _currentBooking!.service?.description ?? 'N/A',
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 30), // Spasi lebih besar
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
@@ -266,23 +363,29 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
                                 _showBookingDetailEditDialog(_currentBooking!);
                               } else {
                                 _showSnackBar(
-                                  'Detail booking tidak tersedia untuk diedit.',
+                                  'Booking details not available for editing.',
+                                  Colors.orange.shade700,
                                 );
                               }
                             },
                             icon: const Icon(Icons.edit, color: Colors.white),
                             label: const Text(
-                              'Edit atau Hapus Booking',
+                              'Edit Booking Details', // Teks tombol diubah
                               style: TextStyle(
                                 fontSize: 18,
                                 color: Colors.white,
                               ),
                             ),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue.shade700,
-                              padding: const EdgeInsets.symmetric(vertical: 15),
+                              backgroundColor:
+                                  _primaryAccentBlue, // Warna tombol utama
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 18,
+                              ), // Padding lebih besar
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(
+                                  12,
+                                ), // Sudut lebih membulat
                               ),
                             ),
                           ),
@@ -297,19 +400,28 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
 
   Widget _buildDetailRow(String label, String value, {Color? color}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(
+        vertical: 8.0,
+      ), // Padding vertikal lebih besar
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 130,
+            width: 140, // Lebar label sedikit lebih besar
             child: Text(
               '$label:',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: _darkCharcoal,
+              ),
             ),
           ),
           Expanded(
-            child: Text(value, style: TextStyle(fontSize: 15, color: color)),
+            child: Text(
+              value,
+              style: TextStyle(fontSize: 16, color: color ?? _mediumGreyText),
+            ),
           ),
         ],
       ),

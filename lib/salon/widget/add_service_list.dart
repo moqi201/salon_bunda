@@ -7,14 +7,15 @@ import 'package:salon_bunda/salon/model/service_model.dart';
 import 'package:salon_bunda/salon/service/api_service.dart';
 import 'package:salon_bunda/salon/widget/custom_text_field.dart';
 
-class AddServiceDialog extends StatefulWidget {
-  const AddServiceDialog({super.key});
+// Mengubah nama kelas dari AddServiceDialog menjadi AddServiceScreen
+class AddServiceScreen extends StatefulWidget {
+  const AddServiceScreen({super.key});
 
   @override
-  State<AddServiceDialog> createState() => _AddServiceDialogState();
+  State<AddServiceScreen> createState() => _AddServiceScreenState();
 }
 
-class _AddServiceDialogState extends State<AddServiceDialog> {
+class _AddServiceScreenState extends State<AddServiceScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
@@ -28,6 +29,17 @@ class _AddServiceDialogState extends State<AddServiceDialog> {
   bool _isLoading = false;
 
   final ImagePicker _picker = ImagePicker();
+
+  // Definisikan palet warna yang konsisten
+  static const Color _primaryBlue = Color(0xFF0A2342); // Deep blue
+  static const Color _lightGreyBackground = Color(
+    0xFFF5F5F5,
+  ); // Light background grey
+  static const Color _darkText = Color(0xFF333333); // Dark text color
+  static const Color _lightBorder = Color(
+    0xFFCCCCCC,
+  ); // Light border for inputs
+  static const Color _errorRed = Color(0xFFE57373); // Error red
 
   Future<void> _pickImage(ImageSource source, bool isEmployeeImage) async {
     final XFile? pickedFile = await _picker.pickImage(source: source);
@@ -48,31 +60,66 @@ class _AddServiceDialogState extends State<AddServiceDialog> {
   ) async {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white, // Latar belakang putih untuk bottom sheet
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (BuildContext context) {
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  'Pilih Sumber Gambar',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: _darkText,
+                  ),
+                ),
+              ),
               ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text('Kamera'),
+                leading: Icon(Icons.camera_alt, color: _primaryBlue),
+                title: Text('Kamera', style: TextStyle(color: _darkText)),
                 onTap: () {
                   Navigator.pop(context);
                   _pickImage(ImageSource.camera, isEmployeeImage);
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('Galeri'),
+                leading: Icon(Icons.photo_library, color: _primaryBlue),
+                title: Text('Galeri', style: TextStyle(color: _darkText)),
                 onTap: () {
                   Navigator.pop(context);
                   _pickImage(ImageSource.gallery, isEmployeeImage);
                 },
               ),
+              const SizedBox(height: 10),
             ],
           ),
         );
       },
+    );
+  }
+
+  void _showSnackBar(String message, {Color? backgroundColor}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(color: Colors.white)),
+        backgroundColor: backgroundColor ?? _primaryBlue,
+        behavior: SnackBarBehavior.floating, // Muncul di atas konten
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10), // Sudut membulat
+        ),
+        margin: const EdgeInsets.all(20), // Margin dari tepi
+        padding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 15,
+        ), // Padding konten
+        elevation: 8, // Efek shadow
+      ),
     );
   }
 
@@ -81,10 +128,7 @@ class _AddServiceDialogState extends State<AddServiceDialog> {
         _descriptionController.text.isEmpty ||
         _priceController.text.isEmpty ||
         _employeeNameController.text.isEmpty) {
-      // Validasi nama karyawan
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Semua field harus diisi.')));
+      _showSnackBar('Semua field harus diisi.', backgroundColor: _errorRed);
       return;
     }
 
@@ -107,15 +151,12 @@ class _AddServiceDialogState extends State<AddServiceDialog> {
     });
 
     if (result != null && result.data != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.message ?? 'Layanan berhasil ditambahkan!'),
-        ),
+      _showSnackBar(
+        result.message ?? 'Layanan berhasil ditambahkan!',
+        backgroundColor: Colors.green,
       );
-      Navigator.pop(
-        context,
-        true,
-      ); // Kembali dan beritahu ServiceListScreen untuk refresh
+      // Kembali dan beritahu ServiceListScreen untuk refresh
+      Navigator.pop(context, true);
     } else {
       String errorMessage =
           result?.message ?? 'Gagal menambahkan layanan. Silakan coba lagi.';
@@ -124,9 +165,7 @@ class _AddServiceDialogState extends State<AddServiceDialog> {
           errorMessage += '\n${value[0]}';
         });
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(errorMessage)));
+      _showSnackBar(errorMessage, backgroundColor: _errorRed);
     }
   }
 
@@ -141,35 +180,56 @@ class _AddServiceDialogState extends State<AddServiceDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Tambah Layanan Baru', textAlign: TextAlign.center),
-      content: SingleChildScrollView(
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text(
+          'Tambah Layanan Baru',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.black87, // Warna AppBar
+        elevation: 0, // Hapus shadow AppBar
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(
+          24.0,
+        ), // Tambahkan padding ke seluruh konten
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment:
+              CrossAxisAlignment.stretch, // Agar elemen mengisi lebar
           children: [
             CustomTextField(
               controller: _nameController,
               labelText: 'Nama Layanan',
             ),
+            const SizedBox(height: 15), // Spasi antar field
             CustomTextField(
               controller: _descriptionController,
               labelText: 'Deskripsi Layanan',
               keyboardType: TextInputType.multiline,
+              maxLines: 3, // Izinkan multi-baris untuk deskripsi
             ),
+            const SizedBox(height: 15),
             CustomTextField(
               controller: _priceController,
               labelText: 'Harga',
               keyboardType: TextInputType.number,
             ),
+            const SizedBox(height: 15),
             CustomTextField(
               controller: _employeeNameController,
-              labelText: 'Nama Karyawan', // Field untuk nama karyawan
+              labelText: 'Nama Karyawan',
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 25), // Spasi sebelum bagian foto
             // Bagian Foto Karyawan
-            const Text(
+            Text(
               'Foto Karyawan (Opsional):',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: _darkText,
+              ),
             ),
             const SizedBox(height: 10),
             GestureDetector(
@@ -178,9 +238,17 @@ class _AddServiceDialogState extends State<AddServiceDialog> {
                 height: 100,
                 width: 100,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.grey.shade400),
+                  color: _lightGreyBackground,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _lightBorder, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.2),
+                      spreadRadius: 2,
+                      blurRadius: 5,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
                 child:
                     _employeeImage != null
@@ -200,11 +268,16 @@ class _AddServiceDialogState extends State<AddServiceDialog> {
                         ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 25),
+
             // Bagian Foto Layanan
-            const Text(
+            Text(
               'Foto Layanan (Opsional):',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: _darkText,
+              ),
             ),
             const SizedBox(height: 10),
             GestureDetector(
@@ -213,9 +286,17 @@ class _AddServiceDialogState extends State<AddServiceDialog> {
                 height: 100,
                 width: 100,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.grey.shade400),
+                  color: _lightGreyBackground,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _lightBorder, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.2),
+                      spreadRadius: 2,
+                      blurRadius: 5,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
                 child:
                     _serviceImage != null
@@ -236,23 +317,30 @@ class _AddServiceDialogState extends State<AddServiceDialog> {
               ),
             ),
             const SizedBox(height: 30),
+
             _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(
+                  child: CircularProgressIndicator(color: _primaryBlue),
+                )
                 : SizedBox(
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
                     onPressed: _addService,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple,
+                      backgroundColor: Colors.black87, // Warna tombol utama
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
+                      elevation: 5, // Tambahkan sedikit shadow pada tombol
                     ),
                     child: const Text(
                       'Tambah Layanan',
-                      style: TextStyle(fontSize: 18),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),

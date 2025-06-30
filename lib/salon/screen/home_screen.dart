@@ -1,32 +1,35 @@
+import 'package:carousel_slider/carousel_slider.dart';
+import 'package:curved_navigation_bar/curved_navigation_bar.dart'; // Import curved_navigation_bar
 import 'package:flutter/material.dart';
 import 'package:salon_bunda/salon/model/user_model.dart';
-import 'package:salon_bunda/salon/screen/login_register.dart';
 import 'package:salon_bunda/salon/screen/profil_screen.dart';
 import 'package:salon_bunda/salon/screen/riwayat_booking.dart';
 import 'package:salon_bunda/salon/screen/service_list_screen.dart';
+import 'package:salon_bunda/salon/screen/tips/beard_care_detail_screen.dart';
+import 'package:salon_bunda/salon/screen/tips/fade_haircut.dart';
+import 'package:salon_bunda/salon/screen/tips/hot_towel_shave_detail_screen.dart';
+import 'package:salon_bunda/salon/screen/tips/pomade_choice_detail_screen.dart';
 import 'package:salon_bunda/salon/service/api_service.dart';
-// import 'package:salon_bunda/salon/screen/booking_management_screen.dart'; // Impor ini hanya jika BookingManagementScreen sudah diperbaiki
 
-// Dummy data for Beauty Guide and Exclusive Offers
-class BeautyGuideItem {
+class BarbershopTipItem {
   final String imageUrl;
   final String title;
   final String description;
 
-  const BeautyGuideItem({
+  const BarbershopTipItem({
     required this.imageUrl,
     required this.title,
     required this.description,
   });
 }
 
-class OfferItem {
+class GroomingOfferItem {
   final String imageUrl;
   final String title;
   final String description;
   final String actionText;
 
-  const OfferItem({
+  const GroomingOfferItem({
     required this.imageUrl,
     required this.title,
     required this.description,
@@ -47,17 +50,23 @@ class _HomeScreenState extends State<HomeScreen> {
   User? _currentUser; // Used to store the current logged-in user data
 
   // List of pages for the BottomNavigationBar
+  // IMPORTANT: Ensure the order matches the CurvedNavigationBarItem order
   static final List<Widget> _widgetOptions = <Widget>[
-    const _HomeContent(), // Main Home content
-    const ServiceListScreen(), // Services
-    const RiwayatBookingScreen(), // Booking History
-    const ProfileScreen(), // Profile
+    const _HomeContent(), // Index 0
+    ServiceListScreen(), // Index 1 (Make sure ServiceListScreen can be const or adjust its constructor if needed)
+    const RiwayatBookingScreen(), // Index 2
   ];
 
   @override
   void initState() {
     super.initState();
     _loadCurrentUser(); // Load user data on initialization
+
+    // Ensure _selectedIndex is valid if it somehow points to the removed Profile tab
+    // This handles cases where _selectedIndex might have been persisted or set to 3 previously.
+    if (_selectedIndex >= _widgetOptions.length) {
+      _selectedIndex = 0; // Reset to Home if out of bounds
+    }
   }
 
   Future<void> _loadCurrentUser() async {
@@ -76,10 +85,13 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey.shade100, // Light background for elegance
+      extendBody:
+          true, // PENTING: Memungkinkan body untuk meluas di belakang bilah navigasi lengkung
       // Custom AppBar as per the design
       appBar: AppBar(
-        toolbarHeight: 130, // Adjust AppBar height to prevent overflow
-        backgroundColor: Colors.white,
+        toolbarHeight: 100, // Adjusted AppBar height
+        backgroundColor: Colors.black87, // Darker, elegant AppBar background
         elevation: 0,
         flexibleSpace: SafeArea(
           child: Padding(
@@ -98,7 +110,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         // Profile picture or placeholder
                         CircleAvatar(
                           radius: 24,
-                          backgroundColor: Colors.brown.shade100,
+                          backgroundColor:
+                              Colors.blueGrey.shade700, // Masculine tone
                           backgroundImage:
                               _currentUser?.email != null
                                   ? NetworkImage(
@@ -107,66 +120,68 @@ class _HomeScreenState extends State<HomeScreen> {
                                   : null,
                           child:
                               _currentUser?.email == null
-                                  ? Icon(
+                                  ? const Icon(
                                     Icons.person,
-                                    color: Colors.brown.shade700,
+                                    color: Colors.white,
                                   )
                                   : null,
                         ),
                         const SizedBox(width: 10),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Hey ${_currentUser?.name ?? 'Pengguna'}!',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.brown.shade800,
+                        InkWell(
+                          onTap: () {
+                            // Navigasi ke ProfileScreen ketika Column diklik
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ProfileScreen(),
                               ),
+                            );
+                          },
+                          child: Padding(
+                            // Tambahkan Padding jika diperlukan untuk area tap yang lebih besar
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 8.0,
+                              horizontal: 0.0,
+                            ), // Sesuaikan padding
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Hey ${_currentUser?.name ?? 'Gentleman'}!', // Changed to Gentleman
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color:
+                                        Colors.white, // White text for contrast
+                                  ),
+                                ),
+                                Text(
+                                  'Welcome to THE BARBER', // Changed salon name
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color:
+                                        Colors
+                                            .grey
+                                            .shade400, // Lighter grey for subtitle
+                                  ),
+                                ),
+                              ],
                             ),
-                            Text(
-                              'Welcome to SHE Salon',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ],
                     ),
-                    // Logout button (moved here from actions)
+                    // Logout button
                     IconButton(
-                      icon: const Icon(Icons.logout, color: Colors.grey),
-                      onPressed: () async {
-                        await ApiService.deleteToken();
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const LoginRegisterScreen(),
-                          ),
-                          (Route<dynamic> route) => false,
-                        );
-                      },
+                      icon: const Icon(
+                        Icons.notifications,
+                        color: Colors.white,
+                      ), // White logout icon
+                      onPressed: () {},
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                // Search bar
-                TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search Salon, ElmStreet, UK >',
-                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey.shade200,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                  ),
-                ),
+                // Removed the search bar as per request
               ],
             ),
           ),
@@ -175,27 +190,22 @@ class _HomeScreenState extends State<HomeScreen> {
       body: _widgetOptions.elementAt(
         _selectedIndex,
       ), // Displays the selected page content
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.brush), // Changed to appropriate Services icon
-            label: 'Services',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.calendar_today,
-            ), // Changed to appropriate Bookings icon
-            label: 'Bookings',
-          ),
-          // BARU: Menambahkan item untuk "Verifikasi Booking
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+      bottomNavigationBar: CurvedNavigationBar(
+        backgroundColor:
+            Colors.white, // Background ini penting agar kurva terlihat
+        color: Colors.black87, // Warna bilah navigasi itu sendiri
+        buttonBackgroundColor:
+            Colors.black87, // WARNA INI TELAH DIUBAH menjadi black87
+        height: 50.0, // Sesuaikan tinggi untuk kurva
+        animationDuration: const Duration(milliseconds: 200), // Durasi animasi
+        items: const <Widget>[
+          // items menerima List<Widget>, bukan BottomNavigationBarItem
+          Icon(Icons.home, size: 30, color: Colors.white),
+          Icon(Icons.content_cut, size: 30, color: Colors.white),
+          Icon(Icons.book, size: 30, color: Colors.white),
         ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.brown,
-        unselectedItemColor: Colors.grey,
+        index: _selectedIndex, // Menggunakan index, bukan currentIndex
         onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed, // Important for more than 3 items
       ),
     );
   }
@@ -205,44 +215,57 @@ class _HomeScreenState extends State<HomeScreen> {
 class _HomeContent extends StatelessWidget {
   const _HomeContent({super.key});
 
-  // Dummy data for Beauty Guide
-  final List<BeautyGuideItem> beautyGuideItems = const [
-    BeautyGuideItem(
-      imageUrl: 'https://placehold.co/100x100/A0522D/FFFFFF?text=EyeLiner',
-      title: 'Trendy eye liner hacks, all eyes on the bold eyed',
-      description: 'Image of a person with eyeliner',
+  // Carousel images - using your uploaded images and correcting extensions
+  final List<String> carouselImages = const [
+    'assets/image/pp.png',
+    'assets/image/creambath.png',
+    'assets/image/jenggot.png',
+    'assets/image/handuk.png',
+    'assets/image/gentle.png',
+    'assets/image/diskon.png',
+  ];
+
+  // Dummy data for Barbershop Tips - using asset images
+  final List<BarbershopTipItem> barbershopTipItems = const [
+    BarbershopTipItem(
+      imageUrl:
+          'assets/image/rambut.png', // Path asset lokal Anda, pastikan .jpg
+      title: 'The Art of the Perfect Fade Haircut',
+      description: 'Mastering the seamless transition from short to long.',
     ),
-    BeautyGuideItem(
-      imageUrl: 'https://placehold.co/100x100/A0522D/FFFFFF?text=SkinCare',
-      title: 'Amazing skin serums for all skin types',
-      description: 'Image of skincare products',
+    BarbershopTipItem(
+      imageUrl: 'assets/image/jnggt.png', // Pastikan file ini ada
+      title: 'Essential Beard Care Routine for Growth',
+      description: 'Tips for a healthy, luscious beard.',
     ),
-    BeautyGuideItem(
-      imageUrl: 'https://placehold.co/100x100/A0522D/FFFFFF?text=Foundation',
-      title: 'How to choose the right foundation for your skin tone',
-      description: 'Image of various foundation shades',
+    BarbershopTipItem(
+      imageUrl: 'assets/image/pomade.png', // Pastikan file ini ada
+      title: 'Choosing the Right Pomade for Your Style',
+      description: 'Understanding different types and their hold.',
     ),
-    BeautyGuideItem(
-      imageUrl: 'https://placehold.co/100x100/A0522D/FFFFFF?text=Lipstick',
-      title: 'Perfect lip shade hack for perfect lips',
-      description: 'Image of lipstick swatches',
+    BarbershopTipItem(
+      imageUrl: 'assets/image/handuk.png', // Pastikan file ini ada
+      title: 'Why a Hot Towel Shave is a Must-Try',
+      description: 'Experience ultimate relaxation and a clean shave.',
     ),
   ];
 
-  // Dummy data for Exclusive Offers
-  final List<OfferItem> offerItems = const [
-    OfferItem(
-      imageUrl: 'https://placehold.co/100x100/8B4513/FFFFFF?text=Membership',
-      title: 'Get your membership !',
-      description: 'Avail 10% Discount on your first service use code: SHEM10',
-      actionText: 'Become a Member now >',
-    ),
-    OfferItem(
-      imageUrl: 'https://placehold.co/100x100/D2B48C/FFFFFF?text=HairSpa',
-      title: 'Hair spa and styling',
+  // Dummy data for Exclusive Grooming Packages
+  final List<GroomingOfferItem> groomingOfferItems = const [
+    GroomingOfferItem(
+      // Jika Anda punya aset lokal untuk ini, ganti ke Image.asset
+      imageUrl: 'assets/image/gentle.png', // Contoh URL
+      title: 'Gentleman\'s Full Service Package',
       description:
-          'Not a good hair day, come and pamper yourself with best hair services',
-      actionText: 'Book now >',
+          'Haircut, hot towel shave, and beard trim at a special price!',
+      actionText: 'Book This Package >',
+    ),
+    GroomingOfferItem(
+      // Jika Anda punya aset lokal untuk ini, ganti ke Image.asset
+      imageUrl: 'assets/image/diskon.png', // Contoh URL
+      title: 'First-Time Client Discount!',
+      description: 'Get 20% off your first haircut with code: BARBER20',
+      actionText: 'Claim Your Discount >',
     ),
   ];
 
@@ -254,13 +277,60 @@ class _HomeContent extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Beauty Guide Section
+            // Carousel Slider Section
+            CarouselSlider(
+              options: CarouselOptions(
+                height: 200.0,
+                autoPlay: true, // Auto-scroll
+                enlargeCenterPage: true,
+                aspectRatio: 16 / 9,
+                autoPlayCurve: Curves.fastOutSlowIn,
+                enableInfiniteScroll: true,
+                autoPlayAnimationDuration: const Duration(milliseconds: 800),
+                viewportFraction: 0.8,
+              ),
+              items:
+                  carouselImages.map((i) {
+                    return Builder(
+                      builder: (BuildContext context) {
+                        return Container(
+                          width: MediaQuery.of(context).size.width,
+                          margin: const EdgeInsets.symmetric(horizontal: 5.0),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade800,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            // Menggunakan Image.asset untuk gambar carousel
+                            child: Image.asset(
+                              i,
+                              fit: BoxFit.cover,
+                              errorBuilder:
+                                  (context, error, stackTrace) => Container(
+                                    color: Colors.grey.shade300,
+                                    child: const Icon(
+                                      Icons.broken_image,
+                                      size: 50,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  }).toList(),
+            ),
+            const SizedBox(height: 30),
+
+            // Barbershop Tips Section
             Text(
-              'Beauty guide',
+              'Barbershop Tips',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Colors.brown.shade800,
+                color: Colors.black87, // Darker text for headings
               ),
             ),
             const SizedBox(height: 15),
@@ -268,63 +338,92 @@ class _HomeContent extends StatelessWidget {
               height: 180, // Height for horizontal list
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                itemCount: beautyGuideItems.length,
+                itemCount: barbershopTipItems.length,
                 itemBuilder: (context, index) {
-                  final item = beautyGuideItems[index];
-                  return Container(
-                    width: 150,
-                    margin: const EdgeInsets.only(right: 15),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [
-                        // Fixed "box boxShadow" to "boxShadow"
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.2),
-                          spreadRadius: 2,
-                          blurRadius: 5,
-                          offset: const Offset(0, 3),
+                  final item = barbershopTipItems[index];
+                  return GestureDetector(
+                    onTap: () {
+                      // PENTING: Logika navigasi berdasarkan index
+                      Widget destinationScreen;
+                      switch (index) {
+                        case 0:
+                          destinationScreen = const FadeHaircutDetailScreen();
+                          break;
+                        case 1:
+                          destinationScreen = const BeardCareDetailScreen();
+                          break;
+                        case 2:
+                          destinationScreen = const PomadeChoiceDetailScreen();
+                          break;
+                        case 3:
+                          destinationScreen = const HotTowelShaveDetailScreen();
+                          break;
+                        default:
+                          // Fallback, though ideally all cases should be handled
+                          destinationScreen = const Text('Unknown Tip');
+                          break;
+                      }
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => destinationScreen,
                         ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ClipRRect(
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(10),
+                      );
+                    },
+                    child: Container(
+                      width: 150,
+                      margin: const EdgeInsets.only(right: 15),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.2),
+                            spreadRadius: 2,
+                            blurRadius: 5,
+                            offset: const Offset(0, 3),
                           ),
-                          child: Image.network(
-                            item.imageUrl,
-                            height: 100,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder:
-                                (context, error, stackTrace) => Container(
-                                  height: 100,
-                                  color: Colors.grey.shade300,
-                                  child: const Icon(
-                                    Icons.broken_image,
-                                    size: 50,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            item.title,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: Colors.brown.shade700,
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ClipRRect(
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(10),
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                            child: Image.asset(
+                              item.imageUrl,
+                              height: 100,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder:
+                                  (context, error, stackTrace) => Container(
+                                    height: 100,
+                                    color: Colors.grey.shade300,
+                                    child: const Icon(
+                                      Icons.broken_image,
+                                      size: 50,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                            ),
                           ),
-                        ),
-                      ],
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text(
+                              item.title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: Colors.black87,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },
@@ -332,19 +431,19 @@ class _HomeContent extends StatelessWidget {
             ),
             const SizedBox(height: 30),
 
-            // Exclusive Offers Section
+            // Exclusive Grooming Packages Section
             Text(
-              'Exclusive Offers',
-              style: TextStyle(
+              'Exclusive Grooming Packages',
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Colors.brown.shade800,
+                color: Colors.black87,
               ),
             ),
             const SizedBox(height: 15),
             Column(
               children:
-                  offerItems.map((offer) {
+                  groomingOfferItems.map((offer) {
                     return Card(
                       margin: const EdgeInsets.only(bottom: 15),
                       elevation: 3,
@@ -357,7 +456,7 @@ class _HomeContent extends StatelessWidget {
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
+                              child: Image.asset(
                                 offer.imageUrl,
                                 height: 80,
                                 width: 80,
@@ -382,10 +481,10 @@ class _HomeContent extends StatelessWidget {
                                 children: [
                                   Text(
                                     offer.title,
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
-                                      color: Colors.brown.shade700,
+                                      color: Colors.black87,
                                     ),
                                   ),
                                   const SizedBox(height: 5),
@@ -403,7 +502,10 @@ class _HomeContent extends StatelessWidget {
                                     offer.actionText,
                                     style: TextStyle(
                                       fontSize: 14,
-                                      color: Colors.brown,
+                                      color:
+                                          Colors
+                                              .teal
+                                              .shade700, // Matching accent color
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
