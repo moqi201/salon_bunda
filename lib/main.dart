@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:salon_bunda/salon/screen/home_screen.dart';
 import 'package:salon_bunda/salon/screen/login_register.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:salon_bunda/salon/service/api_service.dart'; // Untuk memeriksa token awal
+import 'package:salon_bunda/salon/screen/splash_screen.dart'; // Import SplashScreen yang baru Anda buat
+// import 'package:shared_preferences/shared_preferences.dart'; // Tidak lagi diperlukan di main.dart
+// import 'package:salon_bunda/salon/service/api_service.dart'; // Tidak lagi diperlukan di main.dart
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Periksa apakah token sudah ada saat aplikasi dimulai
-  final String? token = await ApiService.getToken();
-  runApp(MyApp(initialRoute: token != null ? '/home' : '/login'));
+  // Tidak perlu lagi memeriksa token di sini.
+  // Pemeriksaan token akan dilakukan di dalam SplashScreen.
+  runApp(const MyApp()); // MyApp sekarang selalu dimulai dengan SplashScreen
 }
 
 class MyApp extends StatelessWidget {
-  final String initialRoute;
-  const MyApp({Key? key, required this.initialRoute}) : super(key: key);
+  // initialRoute tidak lagi diperlukan di sini karena kita menggunakan home
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -28,11 +29,12 @@ class MyApp extends StatelessWidget {
           iconTheme: IconThemeData(color: Colors.white),
         ),
       ),
-      initialRoute: initialRoute,
+      home: const SplashScreen(), // Atur SplashScreen sebagai halaman awal
       routes: {
         '/login': (context) => const LoginRegisterScreen(),
         '/home': (context) => const HomeScreen(),
       },
+      debugShowCheckedModeBanner: false,
     );
   }
 }

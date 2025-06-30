@@ -82,7 +82,8 @@ class _BookingScreenState extends State<BookingScreen> {
               bodyColor: Colors.white,
               displayColor: Colors.white,
             ),
-            dialogTheme: const DialogTheme(backgroundColor: _darkCharcoal),
+            // Perbaikan di sini: Ganti DialogTheme menjadi DialogThemeData
+            dialogTheme: const DialogThemeData(backgroundColor: _darkCharcoal),
           ),
           child: child!,
         );
@@ -122,7 +123,8 @@ class _BookingScreenState extends State<BookingScreen> {
               bodyColor: Colors.white,
               displayColor: Colors.white,
             ),
-            dialogTheme: const DialogTheme(backgroundColor: _darkCharcoal),
+            // Perbaikan di sini: Ganti DialogTheme menjadi DialogThemeData
+            dialogTheme: const DialogThemeData(backgroundColor: _darkCharcoal),
           ),
           child: child!,
         );
@@ -250,34 +252,34 @@ class _BookingScreenState extends State<BookingScreen> {
                   borderRadius: BorderRadius.circular(18),
                   child:
                       widget.service.servicePhotoUrl != null &&
-                              widget.service.servicePhotoUrl!.isNotEmpty
-                          ? Image.network(
-                            widget.service.servicePhotoUrl!,
-                            height: 240, // Taller image for better presentation
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder:
-                                (context, error, stackTrace) => Container(
-                                  height: 240,
-                                  color: const Color(
-                                    0xFFE0E0E0,
-                                  ), // Lighter grey for placeholder
-                                  child: Icon(
-                                    Icons.content_cut,
-                                    size: 90, // Larger icon
-                                    color: Colors.grey.shade700,
-                                  ),
+                                widget.service.servicePhotoUrl!.isNotEmpty
+                            ? Image.network(
+                                widget.service.servicePhotoUrl!,
+                                height: 240, // Taller image for better presentation
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (context, error, stackTrace) => Container(
+                                        height: 240,
+                                        color: const Color(
+                                          0xFFE0E0E0,
+                                        ), // Lighter grey for placeholder
+                                        child: Icon(
+                                          Icons.content_cut,
+                                          size: 90, // Larger icon
+                                          color: Colors.grey.shade700,
+                                        ),
+                                      ),
+                              )
+                            : Container(
+                                height: 240,
+                                color: const Color(0xFFE0E0E0),
+                                child: Icon(
+                                  Icons.content_cut,
+                                  size: 90,
+                                  color: Colors.grey.shade700,
                                 ),
-                          )
-                          : Container(
-                            height: 240,
-                            color: const Color(0xFFE0E0E0),
-                            child: Icon(
-                              Icons.content_cut,
-                              size: 90,
-                              color: Colors.grey.shade700,
-                            ),
-                          ),
+                              ),
                 ),
               ),
               const SizedBox(height: 30),
@@ -356,41 +358,41 @@ class _BookingScreenState extends State<BookingScreen> {
                           child: ClipOval(
                             child:
                                 widget.service.employeePhotoUrl != null &&
-                                        widget
-                                            .service
-                                            .employeePhotoUrl!
-                                            .isNotEmpty
-                                    ? Image.network(
-                                      widget.service.employeePhotoUrl!,
-                                      height: 80, // Larger employee image
-                                      width: 80,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (
-                                            context,
-                                            error,
-                                            stackTrace,
-                                          ) => CircleAvatar(
-                                            radius: 40,
-                                            backgroundColor:
-                                                Colors.grey.shade300,
-                                            child: Icon(
-                                              Icons
-                                                  .person_outline, // Outlined person icon
-                                              size: 50,
-                                              color: Colors.grey.shade600,
-                                            ),
+                                          widget
+                                              .service
+                                              .employeePhotoUrl!
+                                              .isNotEmpty
+                                      ? Image.network(
+                                          widget.service.employeePhotoUrl!,
+                                          height: 80, // Larger employee image
+                                          width: 80,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (
+                                                context,
+                                                error,
+                                                stackTrace,
+                                              ) => CircleAvatar(
+                                                  radius: 40,
+                                                  backgroundColor:
+                                                      Colors.grey.shade300,
+                                                  child: Icon(
+                                                    Icons
+                                                        .person_outline, // Outlined person icon
+                                                    size: 50,
+                                                    color: Colors.grey.shade600,
+                                                  ),
+                                                ),
+                                        )
+                                      : CircleAvatar(
+                                          radius: 40,
+                                          backgroundColor: Colors.grey.shade300,
+                                          child: Icon(
+                                            Icons.person_outline,
+                                            size: 50,
+                                            color: Colors.grey.shade600,
                                           ),
-                                    )
-                                    : CircleAvatar(
-                                      radius: 40,
-                                      backgroundColor: Colors.grey.shade300,
-                                      child: Icon(
-                                        Icons.person_outline,
-                                        size: 50,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
+                                        ),
                           ),
                         ),
                         const SizedBox(width: 25),
@@ -445,36 +447,36 @@ class _BookingScreenState extends State<BookingScreen> {
               // Confirmation Button
               _isLoading
                   ? Center(
-                    child: Lottie.asset(
-                      'assets/lottie/Animation - 1751259356339.json',
-                    ),
-                  )
-                  : SizedBox(
-                    width: double.infinity,
-                    height: 60, // Taller button
-                    child: ElevatedButton(
-                      onPressed: _submitBooking,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            _primaryAccentBlue, // Deep blue for button
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            15,
-                          ), // Rounded button
-                        ),
-                        elevation: 8, // Deeper button shadow
-                        textStyle: const TextStyle(
-                          fontSize: 20, // Larger text
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.0, // More letter spacing
-                        ),
+                      child: Lottie.asset(
+                        'assets/lottie/Animation - 1751259356339.json',
                       ),
-                      child: const Text(
-                        'Confirm Appointment',
-                      ), // More formal text
+                    )
+                  : SizedBox(
+                      width: double.infinity,
+                      height: 60, // Taller button
+                      child: ElevatedButton(
+                        onPressed: _submitBooking,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              _primaryAccentBlue, // Deep blue for button
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              15,
+                            ), // Rounded button
+                          ),
+                          elevation: 8, // Deeper button shadow
+                          textStyle: const TextStyle(
+                            fontSize: 20, // Larger text
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.0, // More letter spacing
+                          ),
+                        ),
+                        child: const Text(
+                          'Confirm Appointment',
+                        ), // More formal text
+                      ),
                     ),
-                  ),
             ],
           ),
         ),
