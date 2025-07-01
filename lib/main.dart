@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:salon_bunda/salon/screen/home_screen.dart';
 import 'package:salon_bunda/salon/screen/login_register.dart';
-import 'package:salon_bunda/salon/screen/splash_screen.dart'; // Import SplashScreen yang baru Anda buat
-// import 'package:shared_preferences/shared_preferences.dart'; // Tidak lagi diperlukan di main.dart
-// import 'package:salon_bunda/salon/service/api_service.dart'; // Tidak lagi diperlukan di main.dart
+import 'package:salon_bunda/salon/service/api_service.dart'; // Pastikan path ini benar
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Tidak perlu lagi memeriksa token di sini.
-  // Pemeriksaan token akan dilakukan di dalam SplashScreen.
-  runApp(const MyApp()); // MyApp sekarang selalu dimulai dengan SplashScreen
+  // Periksa apakah token sudah ada saat aplikasi dimulai
+  final String? token = await ApiService.getToken();
+  // Tentukan rute awal berdasarkan keberadaan token
+  final String initialRoute =
+      token != null && token.isNotEmpty ? '/home' : '/login';
+
+  runApp(MyApp(initialRoute: initialRoute));
 }
 
 class MyApp extends StatelessWidget {
-  // initialRoute tidak lagi diperlukan di sini karena kita menggunakan home
-  const MyApp({Key? key}) : super(key: key);
+  final String initialRoute;
+  const MyApp({super.key, required this.initialRoute});
 
   @override
   Widget build(BuildContext context) {
@@ -25,11 +27,16 @@ class MyApp extends StatelessWidget {
         visualDensity: VisualDensity.adaptivePlatformDensity,
         appBarTheme: const AppBarTheme(
           color: Colors.blue,
-          titleTextStyle: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+          titleTextStyle: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
           iconTheme: IconThemeData(color: Colors.white),
         ),
       ),
-      home: const SplashScreen(), // Atur SplashScreen sebagai halaman awal
+      // Menggunakan initialRoute untuk menentukan halaman pertama
+      initialRoute: initialRoute,
       routes: {
         '/login': (context) => const LoginRegisterScreen(),
         '/home': (context) => const HomeScreen(),

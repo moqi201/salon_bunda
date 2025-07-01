@@ -244,7 +244,7 @@ class ProfileScreen extends StatelessWidget {
                           _buildManagementButton(
                             context,
                             icon: Icons.delete_sweep_outlined,
-                            label: 'Manage Services (Delete)',
+                            label: 'Manage Services ',
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -258,7 +258,7 @@ class ProfileScreen extends StatelessWidget {
                           _buildManagementButton(
                             context,
                             icon: Icons.edit_calendar_outlined,
-                            label: 'Manage Bookings (Edit)',
+                            label: 'Manage Bookings ',
                             onTap: () {
                               Navigator.push(
                                 context,

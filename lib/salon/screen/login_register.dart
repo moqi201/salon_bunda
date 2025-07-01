@@ -23,7 +23,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
   bool _isPasswordVisible = false; // State untuk toggle visibilitas password
 
   // Definisikan palet warna yang konsisten
-  static const Color _primaryColor = Color(0xFF4A90E2); // Biru yang menarik
+  static const Color _primaryColor = Colors.black87; // Biru yang menarik
   static const Color _accentColor = Color(0xFF50E3C2); // Aksen hijau muda
   static const Color _textColor = Color(0xFF333333); // Warna teks gelap
   static const Color _lightTextColor = Color(

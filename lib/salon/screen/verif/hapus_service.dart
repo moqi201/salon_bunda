@@ -273,12 +273,6 @@ class _HapusServiceState extends State<HapusService> {
                                       ),
                                       const SizedBox(height: 5),
                                       Text(
-                                        // 'Rp ${service.price ?? 'N/A'}',
-                                        // style: TextStyle(
-                                        //   fontSize: 16,
-                                        //   color: Colors.black54,
-                                        //   fontWeight: FontWeight.w600,
-                                        // ),
                                         NumberFormat.currency(
                                           locale: 'id_ID',
                                           symbol: 'Rp',

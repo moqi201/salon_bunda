@@ -128,13 +128,18 @@ class _ServiceListScreenState extends State<ServiceListScreen>
                   hintText: 'Search for a perfect look...',
                   hintStyle: TextStyle(color: Colors.grey.shade600),
                   prefixIcon: const Icon(Icons.search, color: Colors.black54),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.search, color: Colors.black),
+                    onPressed: () {
+                      _filterServices(_searchController.text);
+                    },
+                  ),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
                     vertical: 16.0,
                     horizontal: 15.0,
                   ),
                 ),
-                onChanged: _filterServices,
               ),
             ),
             const SizedBox(height: 20),
