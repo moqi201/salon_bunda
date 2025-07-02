@@ -40,12 +40,7 @@ class _BookingDetailEditDialogState extends State<BookingDetailEditDialog> {
     0xFFBDBDBD,
   ); // Warna untuk item yang dinonaktifkan
 
-  final List<String> _statusOptions = [
-    'Pending',
-    'Confirmed',
-    'Cancelled',
-    'Completed',
-  ];
+  final List<String> _statusOptions = ['Pending', 'Confirmed', 'Cancelled'];
 
   @override
   void initState() {
@@ -212,17 +207,14 @@ class _BookingDetailEditDialogState extends State<BookingDetailEditDialog> {
     // Logic untuk menonaktifkan input
     final bool disableDateTimePickers =
         initialBookingStatus == 'confirmed' ||
-        initialBookingStatus == 'cancelled' ||
-        initialBookingStatus == 'completed';
+        initialBookingStatus == 'cancelled';
 
     // Logic untuk Dropdown Status
     // Jika status awal adalah 'confirmed', hanya opsi 'Cancelled' yang bisa dipilih.
     // Jika status awal adalah 'cancelled' atau 'completed', tidak ada opsi yang bisa dipilih.
     // Jika status awal adalah 'pending', semua opsi bisa dipilih.
     bool canChangeStatusToCancelledOnly = initialBookingStatus == 'confirmed';
-    bool disableStatusDropdownCompletely =
-        initialBookingStatus == 'cancelled' ||
-        initialBookingStatus == 'completed';
+    bool disableStatusDropdownCompletely = initialBookingStatus == 'cancelled';
 
     // Logika tombol Save Changes
     // Tombol Save aktif jika:

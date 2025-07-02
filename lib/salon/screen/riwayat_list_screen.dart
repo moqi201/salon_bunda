@@ -128,7 +128,12 @@ class _DetailRiwayatBookingScreenState
         break;
       case 'cancelled':
       case 'rejected':
-        iconColor = Colors.black; // Black for cancelled/rejected
+        iconColor = const Color.fromARGB(
+          255,
+          255,
+          0,
+          0,
+        ); // Black for cancelled/rejected
         iconData = Icons.cancel_outlined;
         break;
       default:

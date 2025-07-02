@@ -49,9 +49,9 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
   static const Color _orangePending = Color(
     0xFFEF6C00,
   ); // Darker orange for pending
-  static const Color _blueCompleted = Color(
-    0xFF1976D2,
-  ); // A shade of blue for completed
+  // static const Color _blueCompleted = Color(
+  //   0xFF1976D2,
+  // ); // A shade of blue for completed
 
   @override
   void initState() {
@@ -172,8 +172,8 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
         return _orangePending;
       case 'cancelled':
         return _redError;
-      case 'completed':
-        return _blueCompleted;
+      // case 'completed':
+      //   return _blueCompleted;
       default:
         return _iconGrey;
     }

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // Untuk format angka harga
 import 'package:salon_bunda/salon/model/base_response.dart';
 import 'package:salon_bunda/salon/model/riwayat_booking_model.dart';
-// Asumsi BookingDetailEditDialog sudah ada dan berisi logika yang diberikan sebelumnya// Sesuaikan path ini jika berbeda
+// Asumsi BookingDetailEditDialog sudah ada dan berisi logika yang diberikan sebelumnya
 import 'package:salon_bunda/salon/service/api_service.dart';
 import 'package:salon_bunda/salon/widget/booking_dialog.dart';
 
@@ -423,7 +423,7 @@ class _EditBookingState extends State<EditBooking> {
                                     ),
                                     const SizedBox(height: 6),
                                     Text(
-                                      'Date: ${DateFormat('dd MM yyyy').format(booking.bookingTime!.toLocal())}', // Format tanggal yang lebih rapi
+                                      'Date: ${DateFormat('dd MMM yyyy').format(booking.bookingTime!.toLocal())}', // Format tanggal yang lebih rapi
                                       style: TextStyle(
                                         fontSize: 15,
                                         color:
@@ -503,26 +503,30 @@ class _EditBookingState extends State<EditBooking> {
                                   ],
                                 ),
                               ),
+
                               // Tombol/Icon Delete
-                              IconButton(
-                                icon: Icon(
-                                  Icons
-                                      .delete_outline, // Ikon delete yang lebih modern
-                                  color: _redDelete, // Warna merah untuk delete
-                                  size: 28, // Ukuran ikon lebih besar
+                              // Sembunyikan tombol jika statusnya 'confirm'
+                              if (booking.status?.toLowerCase() != 'confirmed')
+                                IconButton(
+                                  icon: Icon(
+                                    Icons
+                                        .delete_outline, // Ikon delete yang lebih modern
+                                    color:
+                                        _redDelete, // Warna merah untuk delete
+                                    size: 28, // Ukuran ikon lebih besar
+                                  ),
+                                  tooltip: 'Delete Booking',
+                                  onPressed: () {
+                                    if (booking.id != null) {
+                                      _deleteBooking(booking.id!);
+                                    } else {
+                                      _showSnackBar(
+                                        'Booking ID is not available for deletion.',
+                                        Colors.orange.shade700,
+                                      );
+                                    }
+                                  },
                                 ),
-                                tooltip: 'Delete Booking',
-                                onPressed: () {
-                                  if (booking.id != null) {
-                                    _deleteBooking(booking.id!);
-                                  } else {
-                                    _showSnackBar(
-                                      'Booking ID is not available for deletion.',
-                                      Colors.orange.shade700,
-                                    );
-                                  }
-                                },
-                              ),
                             ],
                           ),
                         ),
