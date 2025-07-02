@@ -154,6 +154,11 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              Image.asset(
+                'assets/image/studio3.png', // Pastikan path ini benar
+                height: 150, // Sesuaikan tinggi gambar sesuai kebutuhan
+              ),
+              const SizedBox(height: 30),
               // Judul utama
               Text(
                 _isRegisterMode ? 'Buat Akun Baru' : 'Selamat Datang Kembali!',
@@ -189,10 +194,10 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
                   controller: _nameController,
                   keyboardType: TextInputType.name,
                   decoration: InputDecoration(
-                    labelText: 'Nama Lengkap',
+                    labelText: 'nama lengkap',
                     labelStyle: TextStyle(color: _lightTextColor),
                     prefixIcon: Icon(
-                      Icons.person,
+                      Icons.person_2_sharp,
                       color: _primaryColor,
                     ), // Ikon gembok
                     border: OutlineInputBorder(
