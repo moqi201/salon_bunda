@@ -142,7 +142,6 @@ class ProfileScreen extends StatelessWidget {
           } else {
             final user = snapshot.data!;
             // Cek apakah email user adalah 'Mq@gmail.com'
-            final bool isAdmin = user.email == 'Mq@gmail.com';
 
             return SingleChildScrollView(
               child: Padding(
@@ -227,51 +226,50 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 40),
 
-                    // --- Conditional Admin Actions ---
-                    if (isAdmin) // Hanya tampilkan jika user adalah admin
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Admin Actions', // Judul untuk bagian tombol
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
+                    // --- Conditional Admin Actions ---// Hanya tampilkan jika user adalah admin
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Admin Actions', // Judul untuk bagian tombol
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
                           ),
-                          const SizedBox(height: 15),
-                          _buildManagementButton(
-                            context,
-                            icon: Icons.delete_sweep_outlined,
-                            label: 'Manage Services ',
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const HapusService(),
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 15),
-                          _buildManagementButton(
-                            context,
-                            icon: Icons.edit_calendar_outlined,
-                            label: 'Manage Bookings ',
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (context) =>
-                                          const EditBooking(), // Pastikan EditBooking ada
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 15),
+                        _buildManagementButton(
+                          context,
+                          icon: Icons.delete_sweep_outlined,
+                          label: 'Manage Services ',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const HapusService(),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 15),
+                        _buildManagementButton(
+                          context,
+                          icon: Icons.edit_calendar_outlined,
+                          label: 'Manage Bookings ',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) =>
+                                        const EditBooking(), // Pastikan EditBooking ada
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                     // --- Akhir Conditional Admin Actions ---
                   ],
                 ),

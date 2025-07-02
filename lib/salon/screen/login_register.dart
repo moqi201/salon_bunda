@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:salon_bunda/salon/model/auth_response.dart';
 import 'package:salon_bunda/salon/model/base_response.dart';
 import 'package:salon_bunda/salon/service/api_service.dart';
-import 'package:salon_bunda/salon/widget/custom_text_field.dart';
 
 import 'home_screen.dart'; // Navigasi ke Home Screen setelah login
 
@@ -177,10 +176,43 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
 
               // Input Nama (hanya untuk Register)
               if (_isRegisterMode) ...[
-                CustomTextField(
+                // TextField(
+                //   controller: _nameController,
+                //   decoration: InputDecoration(
+                //     labelText: 'Nama Lengkap',
+                //     prefixIcon: Icon(Icons.person),
+                //   ),
+                //   // Tambahkan ikon
+                // ),
+                TextField(
+                  // Menggunakan TextField standar untuk kontrol lebih
                   controller: _nameController,
-                  labelText: 'Nama Lengkap',
-                  suffixIcon: Icon(Icons.person), // Tambahkan ikon
+                  keyboardType: TextInputType.name,
+                  decoration: InputDecoration(
+                    labelText: 'Nama Lengkap',
+                    labelStyle: TextStyle(color: _lightTextColor),
+                    prefixIcon: Icon(
+                      Icons.person,
+                      color: _primaryColor,
+                    ), // Ikon gembok
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                      borderSide: BorderSide(color: _primaryColor),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                      borderSide: BorderSide(color: _primaryColor, width: 2.0),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                      borderSide: BorderSide(
+                        color: Colors.grey.shade400,
+                        width: 1.0,
+                      ),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
                 ),
                 const SizedBox(height: 20),
               ],
